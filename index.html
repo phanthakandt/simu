@@ -371,6 +371,8 @@ body:not(.covered) .cover{display:none}
       <div class="testrow marks"><button class="mk" data-tset="0">0</button><button class="mk" data-tset="10">1</button><button class="mk" data-tset="20">2</button><button class="mk" data-tset="30">3</button><button class="mk" data-tset="40">4</button><button class="mk" data-tset="50">5</button><button class="mk" data-tset="60">6</button><button class="mk" data-tset="70">7</button><button class="mk" data-tset="80">8</button><button class="mk" data-tset="90">9</button><button class="mk" data-tset="100" aria-label="ระดับ 10" title="ระดับ 10">❤️</button></div>
       <div class="testrow"><label><input type="checkbox" id="testInstant"> เปลี่ยนทันที</label><span class="muted" id="testNow">ตอนนี้ 0%</span></div>
       <div class="testrow"><button class="btn small" id="btnLvTh">✏️ ตั้งค่าความคิดแต่ละระดับ</button><span class="muted" id="lvThNote"></span></div>
+      <div class="testrow" id="photoRow"></div>
+      <input type="file" id="photoFile" accept="image/*" hidden>
     </div>
 
     <div id="panelBody"></div>
@@ -2352,7 +2354,7 @@ function render(state=S){
   const prevBody=BODY; BODY=bodyCalc(state);
   const HT=(BODY.on?`translate(0 ${BODY.dy.toFixed(2)}) `:'')+HEAD_T;
   const skin=SKINS[S.skin], skE=shade(skin,-.16), h=HAIRCOLORS[S.hairColor][0];
-  let g=drawBg('studio')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+'<g class="fig"><g class="breath"><g class="hopper"><g class="tremble">';
+  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+'<g class="fig"><g class="breath"><g class="hopper"><g class="tremble">';
   g+=`<g class="bow"><g class="head"><g transform="${HT}">${defaultHairBack(h)}</g></g></g>`;
   // lighting: soft key light from the upper left, form shadows that wrap around each limb
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
@@ -2843,7 +2845,43 @@ function applyPose(k,force){
     el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
 }
-function paintCanvas(){ $('canvas').innerHTML=render(); applyPose(poseK,true); }
+/* ---------- the player's own background picture ----------
+   Kept only in this browser (localStorage) — never part of the page itself, so it isn't published anywhere. */
+let BGIMG=load('dressup_bgimg')||{on:true,data:null};
+// the picture covers the whole canvas; a soft floor shadow keeps her standing on something
+const BG_IMG_SVG=`<image class="bgimg" x="0" y="0" width="300" height="600" preserveAspectRatio="xMidYMid slice"/>
+  <ellipse cx="150" cy="572" rx="84" ry="10" fill="#2d2430" opacity=".16"/>`;
+function saveBgImg(){ try{ localStorage.setItem('dressup_bgimg',JSON.stringify(BGIMG)); return true; }catch(e){ return false; } }
+function bgImgRow(){
+  const r=$('photoRow'); if(!r) return;
+  r.innerHTML = BGIMG.data
+    ? `<img src="${BGIMG.data}" alt="พื้นหลังของคุณ" style="width:30px;height:46px;object-fit:cover;border-radius:6px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)"><label><input type="checkbox" id="bgImgOn" ${BGIMG.on?'checked':''}> ใช้พื้นหลังนี้</label><span class="muted"><button class="btn small" data-bgimg="pick">เปลี่ยน</button> <button class="btn small" data-bgimg="del">ลบ</button></span>`
+    : `<button class="btn small" data-bgimg="pick">🖼️ อัปโหลดพื้นหลัง</button>`;
+}
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-bgimg]'); if(!b) return;
+  if(b.dataset.bgimg==='pick') $('photoFile').click();
+  if(b.dataset.bgimg==='del'){ BGIMG.data=null; saveBgImg(); bgImgRow(); paintCanvas(); toast('ลบพื้นหลังแล้ว'); }
+});
+document.addEventListener('change',ev=>{
+  if(ev.target.id==='bgImgOn'){ BGIMG.on=ev.target.checked; saveBgImg(); paintCanvas(); return; }
+  if(ev.target.id!=='photoFile') return;
+  const f=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!f) return;
+  const img=new Image(), url=URL.createObjectURL(f);
+  img.onload=()=>{
+    // shrink before keeping it: sharp enough for the stage, small enough for the browser's storage
+    const sc=Math.min(1,1400/Math.max(img.width,img.height)), cv=document.createElement('canvas');
+    cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+    const prev=BGIMG.data; BGIMG.data=cv.toDataURL('image/jpeg',.85); BGIMG.on=true;
+    if(!saveBgImg()){ BGIMG.data=cv.toDataURL('image/jpeg',.7); if(!saveBgImg()){ BGIMG.data=prev; toast('รูปใหญ่เกินไป เก็บไม่ได้'); return; } }
+    bgImgRow(); paintCanvas(); toast('เปลี่ยนพื้นหลังแล้ว');
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); toast('เปิดรูปนี้ไม่ได้'); };
+  img.src=url;
+});
+setTimeout(bgImgRow,0);
+function paintCanvas(){ $('canvas').innerHTML=render(); const im=$('canvas').querySelector('.bgimg'); if(im) im.setAttribute('href',BGIMG.data); applyPose(poseK,true); }
 let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipFrame=0, kneel=0, kneelWanted=false;
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
