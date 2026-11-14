@@ -2244,6 +2244,15 @@ function bodySweat(){
 }
 function outerColor(){ return S.wOuterC||cloth(S.wOuter).c; }
 // behind the body: the whole sleeve, so the forearm disappears behind the back like the arms do
+// an open cardigan: the shirt collar is laid out over it (the tie stays on top of the collar)
+function collarOverOuter(){
+  if(S.wOuter!=='cardigan' || S.wDress || !TIE_TOPS.includes(S.wTop)) return '';
+  const c=S.wTopC||cloth(S.wTop).c, e=edge(c);
+  let g=[COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join('');
+  g+=`<path d="M135 156.6 L138.2 163.4 Q141.6 162.6 144.6 162.2 M165 156.6 L161.8 163.4 Q158.4 162.6 155.4 162.2" stroke="${e}" stroke-width=".55" fill="none" stroke-dasharray="1.4 1.1" opacity=".55"/>`;
+  if(tieOn()) g+=drawTie('front');
+  return `<g data-pose="g">${g}</g>`;
+}
 function drawOuterBack(){
   if(!S.wOuter) return '';
   const c=outerColor(), e=edge(c), F=sleeveSet(S.wOuter)[0];
@@ -2409,9 +2418,18 @@ function render(state=S){
   OUT_CLIP.parka='M127.6 120 L172.4 120 L173.6 184 C174 222 192.6 246 194.2 300 L194.2 305 L400 305 L400 700 L-100 700 L-100 305 L105.8 305 L105.8 300 C107.4 246 126 222 126.4 184 Z';
   OUT_CLIP.puffer = S.pufLong ? 'M127.6 120 L172.4 120 L174.8 184 C176.4 230 189.4 250 190.6 300 L190.6 304 L400 304 L400 700 L-100 700 L-100 304 L109.4 304 L109.4 300 C110.6 250 123.6 230 125.2 184 Z'
                               : 'M127.6 120 L172.4 120 L174.8 184 Q176.6 208 175.4 228.4 L175.4 232.4 L400 232.4 L400 700 L-100 700 L-100 232.4 L124.6 232.4 L124.6 228.4 Q123.4 208 125.2 184 Z';
-  const outClip=()=>OUT_CLIP[S.wOuter]||OUT_CLIP.cardigan;
-  const underOuter=h=> S.wOuter&&h ? `<clipPath id="outc"><path data-pose="1" d="${outClip()}"/></clipPath><g clip-path="url(#outc)">${h}</g>` : h;
-  const drawTopG=()=> underOuter((S.wTop && CLOTH_DRAW[S.wTop]) ? `<g data-pose="g">${withPattern(CLOTH_DRAW[S.wTop](S.wTopC||cloth(S.wTop).c),'top')}</g>` : '');
+  // narrow: for tops. Up at the shoulders only the neckline shows (a roomy shirt's shoulders must not ride above the
+  // jacket's), and below the jacket's hem the shirt may hang down but never wider than the hem
+  const outClip=narrow=>{
+    let d=OUT_CLIP[S.wOuter]||OUT_CLIP.cardigan;
+    if(!narrow) return d;
+    d=d.replace('M127.6 120 L172.4 120 ','M139.6 120 L160.4 120 L160.8 150.6 L172.4 157.4 ').replace(/ Z$/,' L127.6 157.4 L139.2 150.6 Z');
+    const m=d.match(/L(\d+(?:\.\d+)?) (\d+(?:\.\d+)?) L400 \2 L400 700 L-100 700 L-100 \2 L(\d+(?:\.\d+)?) \2/);
+    if(m && +m[2]>=255) d=d.replace(m[0],`L${m[1]} ${m[2]} L${m[1]} 700 L${m[3]} 700 L${m[3]} ${m[2]}`);
+    return d;
+  };
+  const underOuter=(h,narrow)=> S.wOuter&&h ? `<clipPath id="outc${narrow?'n':''}"><path data-pose="1" d="${outClip(narrow)}"/></clipPath><g clip-path="url(#outc${narrow?'n':''})">${h}</g>` : h;
+  const drawTopG=()=> underOuter((S.wTop && CLOTH_DRAW[S.wTop]) ? `<g data-pose="g">${withPattern(CLOTH_DRAW[S.wTop](S.wTopC||cloth(S.wTop).c),'top')}</g>` : '', true);
   // tucked in: everything of the top below the waistband disappears inside the skirt
   if(S.wSocks && cloth(S.wSocks)) g+=`<g data-pose="g">${drawSocks()}</g>`;
   if(S.wShoes && CLOTH_DRAW[S.wShoes]) g+=`<g data-pose="g">${CLOTH_DRAW[S.wShoes](S.wShoesC||cloth(S.wShoes).c)}</g>`;
@@ -2419,6 +2437,7 @@ function render(state=S){
   if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
   else g+= S.tuck && S.wBottom ? `<clipPath id="tuckc"><rect x="0" y="0" width="300" height="${(BODY.on?ryB(BODY,bottomWaist()+.6):bottomWaist()+.6).toFixed(2)}"/></clipPath><g clip-path="url(#tuckc)">${drawTopG()}</g>`+drawBot()+beltG : (beltLocked() ? underTop(drawBot()+beltG)+drawTopG() : underTop(drawBot())+drawTopG()+beltG);
   g+=drawOuterFront();
+  g+=collarOverOuter();
   g+=bodySweat();
   // faceless head
   let hd=`<clipPath id="face"><path d="${FACE}"/></clipPath><path d="${FACE}" fill="${skin}"/>`;
