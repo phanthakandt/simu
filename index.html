@@ -3054,7 +3054,7 @@ const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show t
 // floating altitude above the base height: target, current position, speed (spring-damper)
 let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1;
 let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
-const SK_K=55, SK_D=3.6, SK_IN=.9;
+const SK_K=110, SK_D=5, SK_IN=.25;
 const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=24, UP_MAX=24, DOWN_MAX=12;
 let kneelE=0;
 (function hipLoop(t){
@@ -3113,7 +3113,7 @@ let kneelE=0;
       if(!bob && bobWas) floatAltT=0;                            // calmed down to 0: settle back to hovering
       if(bob!==bobWas){ bobWas=bob; const lv=document.querySelector('#floatRow .altlv'); if(lv) floatRow(); }
       else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==altSpeed()) floatRow(); }
-      const K=bob?(3+altSpeed()*3.2):ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;
+      const K=bob?(3+altSpeed()*3.2)*9:ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;   // ×9 stiffness = 3× faster at every level
       altV += ((floatAltT-altPos)*K - altV*D)*dt; altPos += altV*dt;
       if(bob && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
         altDir=-altDir; floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
