@@ -3130,18 +3130,32 @@ function musLoadTrack(id,autoplay){
   if(autoplay) musPlay();
 }
 function musTarget(){ return (MUS.vol/100)*((MUS.lv[Math.max(0,Math.min(10,embLevel(EMB.v)))]??100)/100); }
-function musPlay(){
+function musPlay(auto){
   if(!audio.src) return;
-  musVolNow=Math.min(musVolNow,musTarget()); audio.volume=Math.max(0,Math.min(1,musVolNow));
+  musVolNow=auto?0:Math.min(musVolNow,musTarget()); audio.volume=Math.max(0,Math.min(1,musVolNow));
   const p=audio.play(); musPlaying=true;
-  if(p&&p.catch) p.catch(()=>{ musPlaying=false; toast('เล่นเพลงไม่ได้ ลองกดเล่นอีกครั้ง'); musRow(); });
+  if(p&&p.catch) p.catch(()=>{ musPlaying=false; if(!auto) toast('เล่นเพลงไม่ได้ ลองกดเล่นอีกครั้ง'); musRow(); });
   musRow();
 }
 function musPause(){ audio.pause(); musPlaying=false; musRow(); }
 audio.addEventListener('error',()=>{ if(!audio.getAttribute('src')) return; musPlaying=false; toast('เปิดไฟล์เพลงนี้ไม่ได้ ลองไฟล์อื่นหรือแปลงเป็น mp3'); musRow(); });
-audio.addEventListener('ended',()=>{ if(!MUS.loop){ musPlaying=false; musRow(); } });
+audio.addEventListener('ended',()=>{ if(!MUS.loop){ musPlaying=false; musUserOff=true; musRow(); } });
+/* auto play: the music starts by itself once she is shy at all (level 1+) and fades out and stops at level 0.
+   ⏸ turns it off until ▶ is pressed again. Phones only let a page start sound after a tap, so the first tap
+   anywhere quietly "unlocks" the player; after that it can start on its own. */
+let musUserOff=false, musPrimed=false;
+const musLvTarget=()=>Math.max(0,Math.min(10,embLevel(TEST.on?TEST.v:EMB.v)));
+function musAuto(){ if(!audio.src || musUserOff || musPlaying) return; if(musLvTarget()>=1) musPlay(true); }
+function musPrime(){
+  if(musPrimed || !audio.src || musPlaying) return; musPrimed=true;
+  audio.muted=true; const p=audio.play();
+  const done=()=>{ if(!musPlaying) audio.pause(); audio.muted=false; };
+  if(p&&p.then) p.then(done).catch(()=>{ audio.muted=false; musPrimed=false; }); else done();
+}
+['pointerdown','touchend','keydown','click'].forEach(t=>document.addEventListener(t,()=>{ musAuto(); musPrime(); }));
 // follow the shyness level smoothly
-setInterval(()=>{ if(!musPlaying) return; const tg=musTarget(); musVolNow+=(tg-musVolNow)*.25; if(Math.abs(tg-musVolNow)<.003) musVolNow=tg; audio.volume=Math.max(0,Math.min(1,musVolNow)); const lb=document.querySelector('#musicRow .musnow'); if(lb) lb.textContent=Math.round(musVolNow*100)+'%'; },120);
+setInterval(()=>{ musAuto(); if(!musPlaying) return; const off=musLvTarget()<1, tg=off?0:musTarget(); musVolNow+=(tg-musVolNow)*.25; if(Math.abs(tg-musVolNow)<.003) musVolNow=tg; audio.volume=Math.max(0,Math.min(1,musVolNow));
+  if(off && musVolNow<.01){ audio.pause(); musPlaying=false; musRow(); return; } const lb=document.querySelector('#musicRow .musnow'); if(lb) lb.textContent=Math.round(musVolNow*100)+'%'; },120);
 async function musInit(){
   try{ TRACKS=((await musTx('readonly',st=>st.getAll()))||[]).map(musRec).filter(Boolean); TRACKS.sort((a,b)=>a.id<b.id?-1:1); }catch(e){ TRACKS=[]; }
   if(MUS.cur && TRACKS.some(t=>t.id===MUS.cur)) musLoadTrack(MUS.cur,false); else if(TRACKS[0]) musLoadTrack(TRACKS[0].id,false);
@@ -3169,8 +3183,8 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-mus]'); if(!b) return;
   const a=b.dataset.mus;
   if(a==='add') $('musicFile').click();
-  if(a==='play') musPlay();
-  if(a==='pause') musPause();
+  if(a==='play'){ musUserOff=false; if(musLvTarget()>=1) musPlay(); else toast('เพลงจะเริ่มเองเมื่อความเขินถึงระดับ 1'); }
+  if(a==='pause'){ musUserOff=true; musPause(); }
   if(a==='loop'){ MUS.loop=!MUS.loop; audio.loop=MUS.loop; musSave(); musRow(); }
   if(a==='lvtoggle'){ MUS.open=!MUS.open; musSave(); musRow(); }
   if(a==='del' && MUS.cur){
