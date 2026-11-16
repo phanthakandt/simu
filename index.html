@@ -3551,15 +3551,13 @@ const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura
 const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
 const floating=()=>(+S.floatLv||0)>0;
-if(S.float && S.floatLv==null){ S.floatLv=3; } delete S.float;   // the earlier on/off switch becomes level 3
-const FLOAT_WORDS=['ยืนบนพื้น','ลอยอยู่ · เขินระดับ 1','ลอยอยู่ · เขินระดับ 2','ลอยอยู่ · เขินระดับ 3','ลอยอยู่ · เขินระดับ 4','ลอยอยู่ · เขินระดับ 5'];
+if(S.float && S.floatLv==null) S.floatLv=1; delete S.float;
+if((+S.floatLv||0)>1) S.floatLv=1;       // floating is simply on (1) or off (0)
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
-  const L=+S.floatLv||0;
-  r.style.flexWrap='wrap';
-  r.innerHTML=`<span class="mini-label" style="flex-basis:100%;margin:0">✨ ลอยตัว (แฟนตาซี) · ${FLOAT_WORDS[L]}${L?' <small>(อาการแต่ละระดับยังไม่กำหนด)</small>':''}</span><span class="seg">${[0,1,2,3,4,5].map(i=>`<button class="${i===L?'on':''}" data-floatlv="${i}" aria-label="${i?'ลอยระดับ '+i:'ไม่ลอย'}">${i?i:'ไม่ลอย'}</button>`).join('')}</span>`;
+  const on=floating();
+  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`;
 }
-// symptoms for float-shyness 1–5 are still to be decided; for now only lifting off / landing speaks
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
