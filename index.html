@@ -2638,7 +2638,7 @@ $('stage').addEventListener('click',e=>{
 });
 $('stage').addEventListener('animationend',e=>{ if(e.animationName==='hop') $('stage').classList.remove('hop'); });
 $('btnReset').onclick=()=>{ const keep=floatKeep(); S=clone(DEFAULT); Object.assign(S,keep); update(); toast('กลับไปลุคเริ่มต้น'); };
-function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown, floatAuto:S.floatAuto, floatSpeed:S.floatSpeed}; }
+function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown}; }
 
 /* ---------- saved looks ---------- */
 let looks=[];
@@ -2650,7 +2650,7 @@ function renderLooks(){
     : `<div class="empty">ยังไม่มีลุคที่เก็บไว้ กด ♡ เก็บลุคนี้ เมื่อแต่งได้ถูกใจ</div>`;
   $('looks').querySelectorAll('.look').forEach((el,i)=>{ const sv=el.querySelector('svg'); if(sv && looks[i]) bodyStatic(sv,looks[i]); });
 }
-$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; delete lk.floatAuto; delete lk.floatSpeed; looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
+$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
 $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
@@ -3020,9 +3020,14 @@ let kneelE=0;
       // altitude follows its target on a soft spring: eases off, overshoots a little, settles
       const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
       const v0=altV;
-      const K=S.floatAuto?(3+altSpeed()*3.2):ALT_K, D=S.floatAuto?2*Math.sqrt(K)*.42:ALT_D;
+      const bob=autoBob();
+      if(bob && !bobWas){ altDir=1; floatAltT=+S.floatUp||20; }   // starts bobbing: head up first
+      if(!bob && bobWas) floatAltT=0;                            // calmed down to 0: settle back to hovering
+      if(bob!==bobWas){ bobWas=bob; const lv=document.querySelector('#floatRow .altlv'); if(lv) floatRow(); }
+      else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==altSpeed()) floatRow(); }
+      const K=bob?(3+altSpeed()*3.2):ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;
       altV += ((floatAltT-altPos)*K - altV*D)*dt; altPos += altV*dt;
-      if(S.floatAuto && FL>0 && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
+      if(bob && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
         altDir=-altDir; floatAltT=altDir>0?(+S.floatUp||20):-Math.min(ALT_MAX,(+S.floatDown||20));
       }
       if(dt>0){
@@ -3589,7 +3594,7 @@ const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura
 const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
 const floating=()=>(+S.floatLv||0)>0;
-if(S.float && S.floatLv==null) S.floatLv=1; delete S.float; delete S.legJ; delete S.legSync;
+if(S.float && S.floatLv==null) S.floatLv=1; delete S.float; delete S.floatAuto; delete S.floatSpeed; delete S.legJ; delete S.legSync;
 if((+S.floatLv||0)>1) S.floatLv=1;       // floating is simply on (1) or off (0)
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
@@ -3598,26 +3603,21 @@ function floatRow(){
   r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?altHTML():'');
   if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
-// auto bobbing: she drifts up to the top, then down to the bottom, again and again. The speed level (1–10)
-// sets how stiff the pull is — slow and floaty at 1, quick and bouncy at 10 — and the cloth reacts to it.
-const altSpeed=()=>Math.max(1,Math.min(10,+S.floatSpeed||4));
-document.addEventListener('click',ev=>{
-  const b=ev.target.closest('[data-alt],[data-altspd]'); if(!b) return;
-  if(b.dataset.altspd){ S.floatSpeed=Math.max(1,Math.min(10,b.dataset.altspd.startsWith('+')||b.dataset.altspd.startsWith('-')?altSpeed()+(+b.dataset.altspd):+b.dataset.altspd)); persist(); floatRow(); return; }
-  const a=b.dataset.alt;
-  if(a==='auto'){ S.floatAuto=!S.floatAuto; if(S.floatAuto){ altDir=1; floatAltT=+S.floatUp||20; } else floatAltT=0; persist(); floatRow(); }
-});
+// floating shyness: the shyness level (0–10) is how restless she is in the air. At 0 she just hovers;
+// from 1 up she drifts up and down on her own, faster and bouncier with every level (10 = quickest).
+const altSpeed=()=>Math.max(0,Math.min(10,embLevel(EMB.v)));
+const autoBob=()=>floating() && altSpeed()>0;
+let bobWas=false;
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-altstep]'); if(!r) return;
   const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(4,Math.min(80,v)); persist();
-  if(S.floatAuto) floatAltT=altDir>0?(+S.floatUp||20):-(+S.floatDown||20);
+  if(autoBob()) floatAltT=altDir>0?(+S.floatUp||20):-(+S.floatDown||20);
 });
 function altHTML(){
-  const up=+S.floatUp||20, dn=+S.floatDown||20, on=!!S.floatAuto, sp=altSpeed();
+  const up=+S.floatUp||20, dn=+S.floatDown||20, sp=altSpeed();
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
-    <button class="btn small ${on?'primary':''}" data-alt="auto" aria-pressed="${on}">${on?'↕ กำลังลอยขึ้นลง · แตะเพื่อหยุด':'↕ ลอยขึ้นลงเอง'}</button>
-    <span class="mini-label">ความเร็ว · ระดับ ${sp}</span>
-    <div class="testrow marks" style="margin:2px 0 4px"><button class="mk" data-altspd="-1" aria-label="ช้าลง">−</button>${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button class="mk" data-altspd="${i}" style="${i===sp?'border-color:var(--accent);background:var(--accent-soft)':''}">${i}</button>`).join('')}<button class="mk" data-altspd="+1" aria-label="เร็วขึ้น">+</button></div>
+    <span class="mini-label" style="margin-top:0">ความเขินตอนลอย · ระดับ <b class="altlv">${sp}</b> <small>(ปรับที่แถบความเขินด้านบน)</small></span>
+    <span class="note altword" style="display:block;margin:2px 0 6px">${sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
     <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
     <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="50" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
 </div>`;
@@ -3625,7 +3625,7 @@ function altHTML(){
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev){ floatRow(); return; }
-  S.floatLv=L; if(!L){ floatAltT=0; } else if(S.floatAuto){ altDir=1; floatAltT=+S.floatUp||20; } persist(); floatRow();
+  S.floatLv=L; if(!L){ floatAltT=0; } persist(); floatRow();
   if(!prev || !L) think('event',{text:L?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
 });
 setTimeout(floatRow,0);
