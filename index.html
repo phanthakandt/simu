@@ -2687,8 +2687,9 @@ const embWord = v => { const L=Math.round(v/10); return ['ปกติดี','�
 const embLevel = v => Math.round(v/10);
 // level 10: hips freeze, sweat all over, nothing left in her head but a sigh
 // level 10: her head goes blank. Mostly sighs, dots and sweat, and now and then a quiet acceptance
-const MAX_BLANK=['เฮ้อออออ…','……','…………','💦💦💦','😓💦💦','💦💦💦💦💦','…💦','เฮ้อ… 💦💦','……😳💦'];
-const MAX_ACCEPT=['นี่เรา… เป็นผู้หญิงจริงๆ แล้วสินะ','ร่างนี้… คือตัวเราแล้วจริงๆ','ต่อจากนี้ก็คงต้องอยู่ในร่างนี้ไปตลอดสินะ…','หน้าแดง ใจเต้นแรง… ผู้หญิงเขาเป็นแบบนี้กันเองสินะ','คงต้องยอมรับแล้วล่ะ… ว่าตอนนี้เราเป็นผู้หญิง'];
+// level 10: so flustered she's worn out — out of breath, sweating, no words left
+const MAX_BLANK=['แห่ก… แห่ก…','แห่ก… แห่ก… 💦','เหนื่อย… แห่ก…','ห-หายใจ… ไม่ทัน… 💦','แห่ก… 💦💦','ข-ขา… หมดแรง… แห่ก…','แห่ก… เหนื่อย… จัง…','……💦','😓💦💦','💦💦💦'];
+const MAX_ACCEPT=['แห่ก… นี่เรา… ผู้หญิง… จริงๆ… สินะ','แห่ก… ร่างนี้… ตัวเรา… แล้ว…','เขิน… จน… เหนื่อย… เลย… แห่ก…','แห่ก… แห่ก… ยอม… แล้ว… ล่ะ…'];
 let lastMaxT='';
 function maxThought(){
   const pool=Math.random()<.25?MAX_ACCEPT:MAX_BLANK;
@@ -3472,11 +3473,11 @@ let lvSel=null;
 function openLvTh(L){
   if(L==null) L=lvSel!=null?lvSel:embLevel(EMB.v);
   lvSel=L;
-  const word=L===10?'ค้างสะโพก เหงื่อทั่วตัว หัวโล่ง':embWord(L*10);
+  const word=L===10?'เขินจนเหนื่อยหอบ เหงื่อทั่วตัว':embWord(L*10);
   openModal(`<div class="lvth"><h3 style="text-align:center">ความคิดแต่ละระดับความเขิน</h3>
     <div class="lv-chips">${Array.from({length:11},(_,i)=>`<button class="lv-chip ${i===L?'on':''} ${lvLines(i).length?'has':''}" data-lvsel="${i}">${i}</button>`).join('')}</div>
     <p class="lv-head">ระดับ ${L} · ${word}</p>
-    <textarea id="lvText" placeholder="พิมพ์ความคิดของเธอ 1 บรรทัดต่อ 1 ความคิด&#10;เช่น&#10;${L===10?'เฮ้อ…':L>=5?'ขาไม่มีแรงแล้ว… นั่งลงก่อนดีกว่า':L>=1?'ทำไมหน้าร้อนแบบนี้นะ':'วันนี้ก็สบายๆ ดี'}" aria-label="ความคิดระดับ ${L}">${String(LVTH.lv[L]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
+    <textarea id="lvText" placeholder="พิมพ์ความคิดของเธอ 1 บรรทัดต่อ 1 ความคิด&#10;เช่น&#10;${L===10?'แห่ก… แห่ก…':L>=5?'ขาไม่มีแรงแล้ว… นั่งลงก่อนดีกว่า':L>=1?'ทำไมหน้าร้อนแบบนี้นะ':'วันนี้ก็สบายๆ ดี'}" aria-label="ความคิดระดับ ${L}">${String(LVTH.lv[L]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
     <p class="note">${lvLines(L).length} ความคิด · สุ่มขึ้นมาเองตอนที่เธออยู่ระดับนี้</p>
     <span class="mini-label">วิธีใช้</span>
     <div class="pat-row"><button class="pat ${LVTH.mode!=='replace'?'on':''}" data-lvmode="mix">ผสมกับความคิดเดิม</button><button class="pat ${LVTH.mode==='replace'?'on':''}" data-lvmode="replace">ใช้แต่ของฉัน</button></div>
