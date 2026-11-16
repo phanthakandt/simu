@@ -2810,11 +2810,7 @@ function shrugShift(x,y){
 // floating: feet hang with the toes pointing down, so each foot reads longer from the front
 let FLOATFE=0, floatApplied=0;
 const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
-/* ---------- leg joints while floating: hip (swing in/out), knee (bend back), ankle (turn the foot) ----------
-   Only the legs and what's worn on them (socks, shoes) follow; skirts and dresses keep hanging as they are. */
-let LEGON=false, SKIRTON=false, jointVer=0, jointApplied=-1;
-// skirts, dresses and coat hems: when a leg swings outward, the cloth on that side is pushed out with it
-// (each side follows its own leg, the middle splits the difference; legs swinging inward leave the cloth hanging)
+let SKIRTON=false;
 // floating skirts react to the lift: hem rises and flares (or trails down and narrows), with a flutter on top
 function skirtPhys(x,y){
   const top=228, hem=Math.max(top+20,skirtLen()+6);
@@ -2826,60 +2822,26 @@ function skirtPhys(x,y){
   y += Math.sin(skFlapPh + x*.17)*skFlapA*FLOATFE*w;
   return [x,y];
 }
-function skirtFollow(x,y){
-  const e=FLOATFE, w=Math.min(1,(y-HIP_Y)/14), aL=legJ('L').hip*e*w, aR=legJ('R').hip*e*w;
-  const dL=aL>0?Math.min(0,rotPt(x,y,136,HIP_Y,aL)[0]-x):0;
-  const dR=aR>0?Math.max(0,rotPt(x,y,164,HIP_Y,-aR)[0]-x):0;
-  let t=Math.max(0,Math.min(1,(172-x)/44)); t=t*t*(3-2*t);
-  return dL*t+dR*(1-t);
-}
-const HIP_Y=296, KNEE_J=400, ANK_Y=540;
-// a tight skirt or dress (pencil, sequin, qipao, slim slip dress) holds the thighs together: each leg can only swing
-// out as far as the hem has room for. A slit gives more room; loose skirts don't limit anything.
-function spreadLimit(){
-  let tight=false, slack=10;
-  if(S.wDress){ const f=flowFactor('dress'); tight=f>0 && f<=.3; if(S.wDress==='qipao') slack=32; }
-  else if(S.wBottom){ const f=flowFactor('bottom'); tight=f>0 && f<=.3; if(S.wBottom==='slitskirt') slack=26; }
-  if(!tight) return null;
-  // the cloth grips from the widest part of the hips down to the hem, so even a short tight skirt holds the thighs;
-  // only one too short to reach past the hips leaves them free
-  const drop=skirtLen()-(HIP_Y-40); if(drop<=slack*1.15) return null;
-  return Math.asin(slack/drop)*180/Math.PI;
-}
-function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}, lim=spreadLimit(); let hip=+J.hip||0; if(lim!=null && hip>lim) hip=lim; return {hip,knee:+J.knee||0,ank:+J.ank||0}; }
-function rotPt(x,y,px,py,deg){ const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a), dx=x-px, dy=y-py; return [px+dx*c-dy*s, py+dx*s+dy*c]; }
-function legJoint(x,y){
-  if(y<=HIP_Y) return [x,y];
-  const L=x<150, sg=L?1:-1, J=legJ(L?'L':'R'), e=FLOATFE;
-  const hx=L?136:164, ax=L?135:165;
-  // pull the joint in gently over the first few units below the hip so the crotch line doesn't tear
-  const w=Math.min(1,(y-HIP_Y)/14);
-  if(J.ank) [x,y]=rotPt(x,y,ax,ANK_Y,sg*J.ank*e*(y>ANK_Y-4?1:0));
-  if(J.knee && y>KNEE_J){ const f=Math.cos(J.knee*e*Math.PI/180); y=KNEE_J+(y-KNEE_J)*f; }
-  if(J.hip) [x,y]=rotPt(x,y,hx,HIP_Y,sg*J.hip*e*w);
-  return [x,y];
-}
 function deformPath(d,k,hx,kn,F,Rp){
   // 1) fold the lower legs when kneeling, 2) knees toward the centre line, 3) hips slide sideways by hx
   return d.replace(/(-?\d+(?:\.\d+)?)([ ,]+)(-?\d+(?:\.\d+)?)/g,(m,xs,sep,ys)=>{
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
-    if(LEGON && FLOATFE>0 && y>HIP_Y){ y=footY(y); [x,y]=legJoint(x,y); }
-    else if(SKIRTON && FLOATFE>0){ if(y>HIP_Y) x+=skirtFollow(x,y); if(Math.abs(SKLIFT)>.03||skFlapA>.03) [x,y]=skirtPhys(x,y); }
+    if(SKIRTON && FLOATFE>0 && (Math.abs(SKLIFT)>.03||skFlapA>.03)) [x,y]=skirtPhys(x,y);
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && FLOATFE>0 && parseFloat(ys)>HIP_Y) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
-    return (x+hs).toFixed(2)+sep+RY(LEGON?y:footY(y)).toFixed(2);
+    return (x+hs).toFixed(2)+sep+RY(footY(y)).toFixed(2);
   });
 }
 let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && jointApplied===jointVer && Math.abs(SKLIFT-skLiftApplied)<.04 && skFlapA<.03;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; jointApplied=jointVer; skLiftApplied=SKLIFT; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && Math.abs(SKLIFT-skLiftApplied)<.04 && skFlapA<.03;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; skLiftApplied=SKLIFT; }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -2887,8 +2849,8 @@ function applyPose(k,force){
   const ptOf=(x,y,F,Rp)=>{ const m=/(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(deformPath(`M${x} ${y}`,k,hipX,kneelE,F,Rp)); return [+m[1],+m[2]]; };
   c.querySelectorAll(sel).forEach(el=>{
     const tag=el.tagName;
-    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':el.closest('[data-skirt]')?'2':'0');
-    LEGON=el.dataset.lg==='1'; SKIRTON=el.dataset.lg==='2';
+    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-skirt]')?'2':'0');
+    SKIRTON=el.dataset.lg==='2';
     // badges, pins, buttons: things sewn onto the cloth ride along with the point they're attached to
     // printed patterns: shear the fill so the print rides along with the cloth (top of the garment and its hem)
     if(el.classList && el.classList.contains('patfill')){
@@ -2912,7 +2874,7 @@ function applyPose(k,force){
     const F=fOf(el), Rp=rOf(el);
     el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on && FLOATFE<.002) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
-  LEGON=false; SKIRTON=false;
+  SKIRTON=false;
 }
 /* ---------- the player's own background pictures (several; tap one to switch) ----------
    Kept only in this browser — never part of the page itself, so they aren't published anywhere.
@@ -3623,13 +3585,13 @@ const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura
 const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
 const floating=()=>(+S.floatLv||0)>0;
-if(S.float && S.floatLv==null) S.floatLv=1; delete S.float;
+if(S.float && S.floatLv==null) S.floatLv=1; delete S.float; delete S.legJ; delete S.legSync;
 if((+S.floatLv||0)>1) S.floatLv=1;       // floating is simply on (1) or off (0)
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
   const on=floating();
   r.style.flexWrap='wrap';
-  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?jointHTML():'');
+  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?altHTML():'');
   if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
 document.addEventListener('click',ev=>{
@@ -3646,37 +3608,14 @@ document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-altstep]'); if(!r) return;
   const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(4,Math.min(80,v)); persist();
 });
-const JOINTS=[['hip','ต้นขา','หุบ','กาง',-20,40],['knee','เข่า','ตรง','งอ',0,75],['ank','ข้อเท้า','บิดเข้า','บิดออก',-35,35]];
-let jointSide='L';
-function jointHTML(){
-  const sync=S.legSync!==false, side=sync?'L':jointSide, J=legJ(side);
+function altHTML(){
   const up=+S.floatUp||20, dn=+S.floatDown||20;
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <div class="pat-row" style="align-items:center;margin-bottom:6px"><button class="btn small" data-alt="up">⬆ ลอยขึ้น</button><button class="btn small" data-alt="down">⬇ ลอยลง</button><button class="pat" data-alt="reset">↺ ความสูงเดิม</button></div>
     <span class="mini-label">ลอยขึ้นครั้งละ</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้นต่อครั้ง"></span>
     <span class="mini-label">ลอยลงครั้งละ</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลงต่อครั้ง"></span>
-    <hr style="border:none;border-top:1px solid var(--line);margin:10px 0 6px">
-    <div class="pat-row" style="margin-bottom:4px"><button class="pat ${sync?'on':''}" data-jside="both">สองข้างพร้อมกัน</button><button class="pat ${!sync&&side==='L'?'on':''}" data-jside="L">ขาฝั่งซ้ายจอ</button><button class="pat ${!sync&&side==='R'?'on':''}" data-jside="R">ขาฝั่งขวาจอ</button></div>
-    ${(()=>{ const lim=spreadLimit(); return lim!=null?`<span class="lock-note" style="font-size:12px">กระโปรงรัดต้นขาอยู่ อ้าขาได้สุด ${Math.round(lim)}° ต่อข้าง</span>`:''; })()}
-    ${JOINTS.map(([k,n,a,b,mn,mx])=>`<span class="mini-label">${n} <small>(${a} ← → ${b})</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="${mn}" max="${mx}" step="1" value="${J[k]}" data-joint="${k}" aria-label="${n} (องศา)"><span class="nb-unit">°</span></span>`).join('')}
-    <div class="pat-row" style="margin-top:6px"><button class="pat" data-jreset="1">↺ ขาตรงเหมือนเดิม</button></div></div>`;
+</div>`;
 }
-document.addEventListener('input',ev=>{
-  const r=ev.target.closest('[data-joint]'); if(!r) return;
-  const v=parseFloat(r.value); if(isNaN(v)) return;
-  S.legJ=S.legJ||{L:{},R:{}}; S.legJ.L=S.legJ.L||{}; S.legJ.R=S.legJ.R||{};
-  const val=Math.max(+r.min,Math.min(+r.max,v)), sync=S.legSync!==false;
-  if(sync){ S.legJ.L[r.dataset.joint]=val; S.legJ.R[r.dataset.joint]=val; } else S.legJ[jointSide][r.dataset.joint]=val;
-  jointVer++; persist();
-});
-document.addEventListener('click',ev=>{
-  const b=ev.target.closest('[data-jside],[data-jreset]'); if(!b) return;
-  if(b.dataset.jreset){ S.legJ={L:{},R:{}}; jointVer++; persist(); floatRow(); return; }
-  const v=b.dataset.jside;
-  if(v==='both'){ S.legSync=true; if(S.legJ&&S.legJ.L) S.legJ.R={...S.legJ.L}; jointVer++; }
-  else { S.legSync=false; jointSide=v; }
-  persist(); floatRow();
-});
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
