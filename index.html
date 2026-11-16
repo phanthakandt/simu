@@ -2424,7 +2424,7 @@ function render(state=S){
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
   // arms first: they go behind the back, so the body hides the forearms
   g+=[ARM_L,ARM_R].map((a,i)=>`<path data-pose="1" d="${armPath(a,'full',armInset())}" stroke="${skE}" stroke-width="12.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full',armInset())}" stroke="${skin}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full')}" stroke="url(#lit)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full')}" stroke="#4a2418" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${i?.10:.05}" transform="translate(${i?2.4:2} 0)" filter="url(#soft2)"/>`).join('');
-  g+=`<g data-skirt="1">${drawOuterBack()}</g>`;
+  g+=`<g data-skirt="o">${drawOuterBack()}</g>`;
   g+=drawTopBackSleeves();
   // body
   g+=`<path data-pose="1" data-leg="1" d="${BODY_L}" fill="${skin}"/><path data-pose="1" data-leg="1" d="${BODY_R}" fill="${skin}"/><path data-pose="1" d="M150 118 L150 200 L150 215 L150 230 L150 245 L150 260 L150 287" stroke="${skin}" stroke-width="2.4" fill="none"/>`;
@@ -2475,7 +2475,7 @@ function render(state=S){
     const d=`M${f(ys[0][0]+.5)} 120 L${f(300-ys[0][0]-.5)} 120 ${right} ${left} Z`;
     return `<clipPath id="undertop"><path data-pose="1" d="${d}"/></clipPath><g clip-path="url(#undertop)">${h}</g>`;
   };
-  const drawBot=()=> (S.wBottom && CLOTH_DRAW[S.wBottom]) ? `<g data-pose="g" data-skirt="1"${flowFactor('bottom')?` data-flow="${flowFactor('bottom')}" data-rip="${rippleFactor('bottom')}"`:''}>${withPattern(stripBand(CLOTH_DRAW[S.wBottom](S.wBottomC||cloth(S.wBottom).c)),'bottom')}</g>` : '';
+  const drawBot=()=> (S.wBottom && CLOTH_DRAW[S.wBottom]) ? `<g data-pose="g" data-skirt="b"${flowFactor('bottom')?` data-flow="${flowFactor('bottom')}" data-rip="${rippleFactor('bottom')}"`:''}>${withPattern(stripBand(CLOTH_DRAW[S.wBottom](S.wBottomC||cloth(S.wBottom).c)),'bottom')}</g>` : '';
   // under a jacket the inner top's own sleeves are squashed inside the jacket sleeves: hide anything outside the torso up there
   // and below the armpit nothing of it may stick out past the jacket's sides, down to the jacket's hem
   const OUT_CLIP={
@@ -2500,9 +2500,9 @@ function render(state=S){
   if(S.wSocks && cloth(S.wSocks)) g+=`<g data-pose="g" data-leg="1">${drawSocks()}</g>`;
   if(S.wShoes && CLOTH_DRAW[S.wShoes]) g+=`<g data-pose="g" data-leg="1">${CLOTH_DRAW[S.wShoes](S.wShoesC||cloth(S.wShoes).c)}</g>`;
   const beltG = S.wBelt ? `<g data-pose="g">${drawBelt()}</g>` : '';
-  if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g" data-skirt="1"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
+  if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g" data-skirt="d"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
   else g+= S.tuck && S.wBottom ? `<clipPath id="tuckc"><rect x="0" y="0" width="300" height="${(BODY.on?ryB(BODY,bottomWaist()+.6):bottomWaist()+.6).toFixed(2)}"/></clipPath><g clip-path="url(#tuckc)">${drawTopG()}</g>`+drawBot()+beltG : (beltLocked() ? underTop(drawBot()+beltG)+drawTopG() : underTop(drawBot())+drawTopG()+beltG);
-  g+=`<g data-skirt="1">${drawOuterFront()}</g>`;
+  g+=`<g data-skirt="o">${drawOuterFront()}</g>`;
   g+=collarOverOuter();
   g+=bodySweat();
   // faceless head
@@ -2863,7 +2863,14 @@ function shrugShift(x,y){
 }
 let FLOATFE=0, floatApplied=0;
 const footY=y=>y;   // feet keep their normal shape while floating
-let SKIRTON=false, LEGON=false, spreadApplied=0;
+let SKIRTON=false, LEGON=false, SKKIND='', spreadApplied=0;
+// only loose cloth flutters: pleated and flared skirts/dresses. Fitted ones (pencil, slit, plain A-line, sequin
+// pencil, qipao, straight slip dress) and jackets stay still; a yoke skirt flutters below its seam only.
+function flutterTop(){
+  if(SKKIND==='b'){ if(flowFactor('bottom')<.8) return null; if(S.wBottom==='yokepleat') return Math.min(skirtLen()-10, 216+yokeDepth()/CM_PER_UNIT); return 228; }
+  if(SKKIND==='d'){ return flowFactor('dress')>=.8 ? 228 : null; }
+  return null;
+}
 // floating: the legs may part a little (a few degrees, both sides alike). The legs and what's on them turn
 // at the hip; skirts, dresses and coat hems are pushed out the same amount so the legs stay inside.
 const SPREAD_MAX=8, HIP_PY=296;
@@ -2881,7 +2888,8 @@ function spreadSkirt(x,y,a){
 }
 // floating skirts react to the lift: hem rises and flares (or trails down and narrows), with a flutter on top
 function skirtPhys(x,y){
-  const top=228, hem=Math.max(top+20,skirtLen()+6);
+  const top=flutterTop(); if(top==null) return [x,y];
+  const hem=Math.max(top+20,skirtLen()+6);
   let w=Math.max(0,Math.min(1,(y-top)/(hem-top))); if(!w) return [x,y];
   w=Math.pow(w,1.35);
   // the hem may lift only as far as the skirt's own length allows: a short skirt never rides up past the hips
@@ -2927,8 +2935,8 @@ function applyPose(k,force){
   const ptOf=(x,y,F,Rp)=>{ const m=/(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(deformPath(`M${x} ${y}`,k,hipX,kneelE,F,Rp)); return [+m[1],+m[2]]; };
   c.querySelectorAll(sel).forEach(el=>{
     const tag=el.tagName;
-    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':el.closest('[data-skirt]')?'2':'0');
-    SKIRTON=el.dataset.lg==='2'; LEGON=el.dataset.lg==='1';
+    if(el.dataset.lg===undefined){ const sk=el.closest('[data-skirt]'); el.dataset.lg=(el.closest('[data-leg]')?'1':sk?'2':'0'); el.dataset.sk=sk?sk.dataset.skirt:''; }
+    SKIRTON=el.dataset.lg==='2'; LEGON=el.dataset.lg==='1'; SKKIND=el.dataset.sk||'';
     // badges, pins, buttons: things sewn onto the cloth ride along with the point they're attached to
     // printed patterns: shear the fill so the print rides along with the cloth (top of the garment and its hem)
     if(el.classList && el.classList.contains('patfill')){
@@ -3041,12 +3049,12 @@ let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipF
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
 let floatK=0, floatLvShown=0, floatSide=1;
-const FLOAT_RISE=56;
+const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show the shoes
 // floating altitude above the base height: target, current position, speed (spring-damper)
 let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1;
 let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
 const SK_K=55, SK_D=3.6, SK_IN=.9;
-const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=130;
+const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=24, UP_MAX=24, DOWN_MAX=12;
 let kneelE=0;
 (function hipLoop(t){
   requestAnimationFrame(hipLoop);
@@ -3099,14 +3107,14 @@ let kneelE=0;
       const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
       const v0=altV;
       const bob=autoBob();
-      if(bob && !bobWas){ altDir=1; floatAltT=+S.floatUp||20; }   // starts bobbing: head up first
+      if(bob && !bobWas){ altDir=1; floatAltT=Math.min(UP_MAX,+S.floatUp||12); }   // starts bobbing: head up first
       if(!bob && bobWas) floatAltT=0;                            // calmed down to 0: settle back to hovering
       if(bob!==bobWas){ bobWas=bob; const lv=document.querySelector('#floatRow .altlv'); if(lv) floatRow(); }
       else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==altSpeed()) floatRow(); }
       const K=bob?(3+altSpeed()*3.2):ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;
       altV += ((floatAltT-altPos)*K - altV*D)*dt; altPos += altV*dt;
       if(bob && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
-        altDir=-altDir; floatAltT=altDir>0?(+S.floatUp||20):-Math.min(ALT_MAX,(+S.floatDown||20));
+        altDir=-altDir; floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
       }
       if(dt>0){
         // the cloth is a looser spring hanging off the body: when she shoots up it trails down, when she
@@ -3121,7 +3129,7 @@ let kneelE=0;
       const rise=fe*(FLOAT_RISE+altPos)+Math.sin(t/1000)*4*fe;
       const lean=0;   // upright, like standing — just off the ground
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
-      const top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-14-rise)/Math.max(1,566-top));
+      const top=50+BODY.dy*BODY.fit, k=Math.min(1,(566-6-rise)/Math.max(1,566-top));   // top of the hair is about y 52
       fl.setAttribute('transform',`translate(0 ${(-rise).toFixed(2)}) translate(150 566) scale(${k.toFixed(4)}) translate(-150 -566) rotate(${lean.toFixed(2)} 150 330)`);
     }
   }
@@ -3689,21 +3697,21 @@ const autoBob=()=>floating() && altSpeed()>0 && altSpeed()<10;
 let bobWas=false;
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-altstep]'); if(!r) return;
-  const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(4,Math.min(80,v)); persist();
-  if(autoBob()) floatAltT=altDir>0?(+S.floatUp||20):-(+S.floatDown||20);
+  const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(2,Math.min(r.dataset.altstep==='floatUp'?UP_MAX:DOWN_MAX,v)); persist();
+  if(autoBob()) floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
 });
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-legspread]'); if(!r) return;
   const v=parseFloat(r.value); if(isNaN(v)) return; S.legSpread=Math.max(0,Math.min(SPREAD_MAX,v)); persist();
 });
 function altHTML(){
-  const up=+S.floatUp||20, dn=+S.floatDown||20, sp=altSpeed();
+  const up=Math.min(UP_MAX,+S.floatUp||12), dn=Math.min(DOWN_MAX,+S.floatDown||8), sp=altSpeed();
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <span class="mini-label" style="margin-top:0">ความเขินตอนลอย · ระดับ <b class="altlv">${sp}</b> <small>(ปรับที่แถบความเขินด้านบน)</small></span>
     <span class="note altword" style="display:block;margin:2px 0 6px">${sp>=10?'เขินจนตัวค้าง ลอยนิ่งอยู่กลางอากาศ':sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
     <span class="mini-label">อ้าขา <small>(0–${SPREAD_MAX}°)</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="0" max="${SPREAD_MAX}" step="1" value="${Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))}" data-legspread="1" aria-label="อ้าขา (องศา)"></span>
-    <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
-    <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="50" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
+    <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="2" max="${UP_MAX}" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
+    <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="2" max="${DOWN_MAX}" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
 </div>`;
 }
 document.addEventListener('click',ev=>{
