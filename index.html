@@ -3247,6 +3247,7 @@ let kneelE=0;
   { // shyness 10: a sob hitch every 2 s — shoulders and head jerk up quickly, then sink back
     const at10=atMax();
     if(at10 && !was10){ sobT0=t+900;
+      think('event',{text:'ว้ายยยย!',force:true,raw:true,keep:true});
       st.classList.remove('burst-on','shake10','startle10'); void st.offsetWidth; st.classList.add('burst-on','shake10','startle10');
       clearTimeout(burstTm); burstTm=setTimeout(()=>st.classList.remove('burst-on','shake10','startle10'),1600); }
     // coming down from 10: the heart kicks off again
@@ -3989,7 +3990,7 @@ function think(kind, opt={}){
   // the player's own thoughts for this level take their turn on idle thoughts
   if(kind==='idle' && (!opt.text || LVTH.mode==='replace')){ const c=customThought(embLevel(EMB.v)); if(c){ text=c; custom=true; } }
   // at 100% her mind goes blank: nothing left but a long sigh (or the player's own level-10 lines)
-  if(atMax()){ const c=customThought(10); text=c||maxThought(); }
+  if(atMax() && !opt.keep){ const c=customThought(10); text=c||maxThought(); }
   lastThought=text; lastThoughtAt=now;
   const before=MIND.fam;
   MIND.fam=Math.min(100,MIND.fam+(GAIN[kind]||0)+(opt.fam||0));
