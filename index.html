@@ -496,7 +496,7 @@ const DEFAULT = {
   skin:'light', hair:'straight', hairColor:'dark', eye:'brown', expr:'smile', lip:LIPS[0],
   top:{id:'tee',c:'#ffffff'}, bottom:{id:'jeans',c:'#a9c4e4'}, dress:{id:'none',c:'#f2c45a'},
   outer:{id:'none',c:'#2a3550'}, shoes:{id:'sneaker',c:'#ffffff'}, bagC:'#7a5240', hatC:'#c2454f',
-  acc:['earrings'], bg:'studio', suitC:'#5d6b8a', wTop:null, wTopC:'#ffffff', wBottom:null, wBottomC:null, wBottomLen:330, tuck:false, wShoes:null, wShoesC:'#ffffff', wSocks:null, wSocksC:'#ffffff', sockCuff:'plain', sockStripeC:'#3f5f93', wOuter:null, wOuterC:null, wEyes:null, wEyesC:null, wMask:null, wMaskC:null, wBelt:null, beltC:'#7a5240', buckleC:'#d9b25b', beltLoose:0
+  acc:['earrings'], bg:'studio', hairStyle:'asym', suitC:'#5d6b8a', wTop:null, wTopC:'#ffffff', wBottom:null, wBottomC:null, wBottomLen:330, tuck:false, wShoes:null, wShoesC:'#ffffff', wSocks:null, wSocksC:'#ffffff', sockCuff:'plain', sockStripeC:'#3f5f93', wOuter:null, wOuterC:null, wEyes:null, wEyesC:null, wMask:null, wMaskC:null, wBelt:null, beltC:'#7a5240', buckleC:'#d9b25b', beltLoose:0
 };
 let S = clone(DEFAULT);
 function clone(o){return JSON.parse(JSON.stringify(o))}
@@ -631,19 +631,21 @@ const RAIN_FRONT=`<g class="rain10" style="pointer-events:none">${RAIN_DROPS(14,
 const BANG_SVG=`<g class="bang10"><text x="214" y="60" font-family="Mitr, sans-serif" font-size="44" font-weight="500" fill="#e2475f" stroke="#fff" stroke-width="5" paint-order="stroke" transform="rotate(12 214 60)">!!</text></g>`;
 const HALO_SVG=`<g class="halo10"><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#ffd36b" stroke-width="3.2" opacity=".9"/><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#fff6d6" stroke-width="1.1"/></g>`;
 const BURST_SVG=`<g class="burst10"><circle cx="150" cy="190" r="120" fill="#fff4cf" opacity=".55"/>${Array.from({length:16},(_,i)=>{ const a=i/16*Math.PI*2, r1=70, r2=i%2?190:240; return `<path d="M${(150+Math.cos(a)*r1).toFixed(1)} ${(190+Math.sin(a)*r1).toFixed(1)} L${(150+Math.cos(a+.05)*r2).toFixed(1)} ${(190+Math.sin(a+.05)*r2).toFixed(1)} L${(150+Math.cos(a-.05)*r2).toFixed(1)} ${(190+Math.sin(a-.05)*r2).toFixed(1)} Z" fill="#ffe7a1" opacity=".7"/>`; }).join('')}</g>`;
-function drawProps(){
+const PROP_W_MIN=3, PROP_W_MAX=40, PROP_W_DEF=7;
+function drawProps(layer){
   const ps=Array.isArray(S.props)?S.props:[];
   return ps.map((p,i)=>{
     const T=PROP_TYPES[p.type]; if(!T) return '';
+    if(!!p.front!==(layer==='front')) return '';
     const x=Math.max(10,Math.min(290,+p.x||60)), h=Math.max(T.hMin,Math.min(T.hMax,+p.h||T.hDef)), c=p.c||T.cols[0][0], e=edge(c);
     const lift=Math.max(0,Math.min(PROP_LIFT_MAX,+p.lift||0));
     if(p.type==='pole'){
-      const w=7, bottom=FLOOR_Y-lift, top=bottom-h, hi=shade(c,.28), dk=shade(c,-.22);
-      const shO=(.14*Math.max(.35,1-lift/160)).toFixed(3), shR=(11*Math.max(.6,1-lift/300)).toFixed(1);
+      const w=Math.max(PROP_W_MIN,Math.min(PROP_W_MAX,+p.w||PROP_W_DEF)), bottom=FLOOR_Y-lift, top=bottom-h, hi=shade(c,.28), dk=shade(c,-.22);
+      const shO=(.14*Math.max(.35,1-lift/160)).toFixed(3), shR=(Math.max(11,w*1.4)*Math.max(.6,1-lift/300)).toFixed(1);
       return `<g class="prop" data-pi="${i}"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="${shR}" ry="2.6" fill="#2d2430" opacity="${shO}"/><g class="propmv">
-        <rect x="${x-w/2}" y="${top}" width="${w}" height="${h}" rx="3.5" fill="${c}" stroke="${e}" stroke-width=".9"/>
-        <rect x="${x-w/2+1.2}" y="${top+3}" width="1.6" height="${Math.max(0,h-6)}" rx=".8" fill="${hi}" opacity=".7"/>
-        <rect x="${x+w/2-2}" y="${top+3}" width="1.2" height="${Math.max(0,h-6)}" rx=".6" fill="${dk}" opacity=".5"/>
+        <rect x="${x-w/2}" y="${top}" width="${w}" height="${h}" rx="${Math.min(w/2,h/2)}" fill="${c}" stroke="${e}" stroke-width=".9"/>
+        <rect x="${x-w/2+w*.17}" y="${top+3}" width="${w*.23}" height="${Math.max(0,h-6)}" rx="${w*.11}" fill="${hi}" opacity=".7"/>
+        <rect x="${x+w/2-w*.29}" y="${top+3}" width="${w*.17}" height="${Math.max(0,h-6)}" rx="${w*.08}" fill="${dk}" opacity=".5"/>
         <rect x="${x-w/2}" y="${top+10}" width="${w}" height="2" fill="${dk}" opacity=".35"/><rect x="${x-w/2}" y="${bottom-12}" width="${w}" height="2" fill="${dk}" opacity=".35"/>${p.dance?`<g class="poleglow"><circle cx="${x}" cy="${top}" r="13" fill="#bfe0ff" opacity=".45"/><circle cx="${x}" cy="${top}" r="6" fill="#ffffff" opacity=".9"/></g>`:''}</g></g>`;
     }
     return '';
@@ -656,8 +658,10 @@ function propsControls(){
   h+=`<div class="wardrobe">`;
   ps.forEach((p,i)=>{ const T=PROP_TYPES[p.type]; if(!T) return;
     const x=Math.round(+p.x||60), ht=Math.round(+p.h||T.hDef);
-    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>อยู่หลังตัวละครเสมอ</small>
+    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>${p.front?'อยู่หน้าตัวละคร':'อยู่หลังตัวละคร'}</small>
+      <span class="pat-row" style="margin-top:4px"><button class="pat ${p.front?'':'on'}" data-propfront="${i}" data-v="0">หลังตัวละคร</button><button class="pat ${p.front?'on':''}" data-propfront="${i}" data-v="1">หน้าตัวละคร</button></span>
       <span class="mini-label">ความยาวไม้</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความยาวไม้"></span>
+      <span class="mini-label">ความหนาไม้</span><span class="len-row"><input type="range" class="slider" min="${PROP_W_MIN}" max="${PROP_W_MAX}" step="1" value="${Math.round(+p.w||PROP_W_DEF)}" data-prop="${i}" data-pk="w" aria-label="ความหนาไม้"></span>
       <span class="mini-label">ลอยจากพื้น</span><span class="len-row"><input type="range" class="slider" min="0" max="${PROP_LIFT_MAX}" step="1" value="${Math.round(+p.lift||0)}" data-prop="${i}" data-pk="lift" aria-label="ลอยจากพื้น"></span>
       <span class="pat-row" style="margin-top:6px"><button class="pat ${p.dance?'on':''}" data-propdance="${i}">💃 โหมดเต้นระบำ${p.dance?' · เปิด':''}</button></span>${p.dance?`<small style="display:block;color:var(--muted)">ขยับขึ้นลงนำหน้าตัวละครนิดหน่อย ความเร็วตามระดับความเขิน (นิ่งที่ 0 และ 10)</small>`:''}
       <span class="mini-label">ตำแหน่ง <small>(ซ้าย ← → ขวา)</small></span><span class="len-row"><input type="range" class="slider" min="10" max="290" step="1" value="${x}" data-prop="${i}" data-pk="x" aria-label="ตำแหน่งซ้ายขวา"></span>
@@ -667,8 +671,9 @@ function propsControls(){
   return h;
 }
 document.addEventListener('click',ev=>{
-  const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]');
-  if(!a&&!d&&!c&&!dn) return;
+  const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]'), fr=ev.target.closest('[data-propfront]');
+  if(!a&&!d&&!c&&!dn&&!fr) return;
+  if(fr){ const p=(S.props||[])[+fr.dataset.propfront]; if(p){ p.front=fr.dataset.v==='1'; } update(); return; }
   if(dn){ const p=(S.props||[])[+dn.dataset.propdance]; if(p){ p.dance=!p.dance; } update(); return; }
   S.props=Array.isArray(S.props)?S.props:[];
   if(a){ const T=PROP_TYPES[a.dataset.propadd]; const n=S.props.length; S.props.push({type:a.dataset.propadd, x:n%2?240:60, h:T.hDef, c:T.cols[0][0]}); }
@@ -1044,7 +1049,7 @@ function defaultHairBack(h){
   if(S.hairStyle==='wavylocks') return wavyHairBack(h);
   if(S.hairStyle==='bun'||S.hairStyle==='bunlocks') return bunHairBack(h);
   if(S.hairStyle==='korean') return koreanHairBack(h);
-  if(S.hairStyle==='framed') return framedHairBack(h);
+  if(S.hairStyle==='framed'||S.hairStyle==='asym') return framedHairBack(h);
   if(S.hairStyle==='wavy') return wavyHairBack(h);
   if(S.hairStyle==='half') return halfHairBack(h);
   const e=shade(h,-.3), st=shade(h,-.18), hi=shade(h,.4);
@@ -1241,6 +1246,30 @@ function drawSideLocks(h){
   }
   return g;
 }
+// middle part, one side (viewer's left) falls straight down over the ear, the other side is tucked behind the ear
+function asymHairFront(h,skin){
+  const e=shade(h,-.3), st=shade(h,-.2), hi=shade(h,.42);
+  const CAP='M114.6 116 Q108.6 104 110 82 Q113 48 150 46.6 Q187 48 190 82 Q191.4 104 185.4 116 Q183.4 112 183.2 104 Q183 92 179.6 84 Q173 72 163 66 Q155 62.4 150.6 58.6 L149.4 58.6 Q145 62.4 137 66 Q127 72 120.4 84 Q117 92 116.8 104 Q116.6 112 114.6 116 Z';
+  let g=foreheadShadow(CAP,skin);
+  g+=`<path d="${CAP}" fill="${h}" stroke="${e}" stroke-width="1.3"/>`;
+  g+=`<path d="M150 47.4 L150 58" stroke="${shade(h,-.45)}" stroke-width="1.4" stroke-linecap="round"/>`;
+  g+=['M152 52 Q168 58 179 76 Q185.4 90 185 110','M153 56 Q164 62 172 72','M160 50 Q176 56 184 76']
+    .map(d=>`<path d="${d}" stroke="${st}" stroke-width="1.2" fill="none" opacity=".7"/>`).join('');
+  g+=`<path d="M153 51 Q162 52 172 58" stroke="${hi}" stroke-width="3" stroke-linecap="round" fill="none" opacity=".45"/>`;
+  return g;
+}
+// drawn after the ears: the loose side hangs over its ear; the tucked side shows a lock passing over the top of the other ear
+function asymHairOver(h){
+  const e=shade(h,-.3), st=shade(h,-.2), hi=shade(h,.42);
+  let g=`<path d="M149.6 56.6 Q124 58 113 74 Q105 88 104.6 108 Q104 150 103 186 Q102.6 196 106 202 Q110 197 114 202 Q118 196 121.6 200 Q120.6 170 119.6 140 Q118.6 118 119 106 Q121 88 132 74 Q141 64.6 149.6 61.4 Z" fill="${h}" stroke="${e}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  g+=['M146 59 Q124 66 115 84 Q109 100 109.6 130 Q109.6 160 108 192','M143 61 Q128 70 120 86 Q114.6 100 114.4 126 Q114.6 160 115.6 196','M139 60 Q118 70 110 92']
+    .map(d=>`<path d="${d}" stroke="${st}" stroke-width="1" fill="none" opacity=".7"/>`).join('');
+  g+=`<path d="M141 60 Q124 66 116 80 Q110.6 92 110 108" stroke="${hi}" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".45"/>`;
+  // tucked side: the lock sweeps over the top of the ear and disappears behind it
+  g+=`<path d="M180.6 82 Q189 80.6 193.2 88 Q194.6 92 193.6 96 Q191.6 90.6 187.6 88.6 Q183.6 87 181.2 88.4 Z" fill="${h}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`;
+  g+=`<path d="M183 84 Q188.6 84 191.4 89" stroke="${hi}" stroke-width="1" stroke-linecap="round" fill="none" opacity=".5"/>`;
+  return g;
+}
 function drawEars(skin){
   const skE=shade(skin,-.16), inner=shade(skin,-.07);
   let g='';
@@ -1289,6 +1318,7 @@ function defaultHairFront(h,skin){
   if(S.hairStyle==='bun'||S.hairStyle==='bunlocks') return bunHairFront(h,skin);
   if(S.hairStyle==='korean') return koreanHairFront(h,skin);
   if(S.hairStyle==='framed') return framedHairFront(h,skin);
+  if(S.hairStyle==='asym') return asymHairFront(h,skin);
   if(S.hairStyle==='wavy') return wavyHairFront(h,skin);
   if(S.hairStyle==='half') return halfHairFront(h,skin);
   const e=shade(h,-.3), st=shade(h,-.2), hi=shade(h,.42);
@@ -2470,7 +2500,7 @@ function render(state=S){
   const prevBody=BODY; BODY=bodyCalc(state);
   const HT=(BODY.on?`translate(0 ${BODY.dy.toFixed(2)}) `:'')+HEAD_T;
   const skin=SKINS[S.skin], skE=shade(skin,-.16), h=HAIRCOLORS[S.hairColor][0];
-  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+(live?drawProps():'')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+(live?RAIN_BACK+BURST_SVG+FLOAT_BACK:'')+'<g class="fig"><g class="floater">'+(live?FLOAT_AURA:'')+'<g class="breath"><g class="hopper"><g class="tremble">';
+  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+(live?drawProps()+'<g class="propref"/>':'')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+(live?RAIN_BACK+BURST_SVG+FLOAT_BACK:'')+'<g class="fig"><g class="floater">'+(live?FLOAT_AURA:'')+'<g class="breath"><g class="hopper"><g class="tremble">';
   g+=`<g class="bow"><g class="head"><g transform="${HT}">${defaultHairBack(h)}</g></g></g>`;
   // lighting: soft key light from the upper left, form shadows that wrap around each limb
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
@@ -2497,6 +2527,9 @@ function render(state=S){
     // cast shadows from the garments onto the skin
     +`<path d="M90 209 Q150 214 210 209" stroke="#4a2418" stroke-width="4" fill="none" opacity=".22" filter="url(#soft2)"/>`
     +`<path d="M210 263 Q170 267 154 290 M90 263 Q130 267 146 290" stroke="#4a2418" stroke-width="3.5" fill="none" opacity=".2" filter="url(#soft2)"/>`
+    +`</g>`;
+  // base suit kept apart so a prop placed in front of her can slip between her body and her clothes
+  const suitG=`<g clip-path="url(#bd)">`
     // garments
     +`<path data-pose="1" d="${TUBE}" fill="${sc}"/><path data-pose="1" d="${BRIEF}" fill="${sc}"/>`
     // a little pink brand tag stitched on the waistband, on her right side of the tummy
@@ -2515,6 +2548,10 @@ function render(state=S){
   { const kp=S.skin==='deep'?'#c96a72':S.skin==='tan'?'#e58b8f':'#f29aa2', ko=S.skin==='deep'?.38:.42;
     g+=`<radialGradient id="kneeb"><stop offset="0" stop-color="${kp}" stop-opacity="${ko}"/><stop offset=".55" stop-color="${kp}" stop-opacity="${(ko*.55).toFixed(2)}"/><stop offset="1" stop-color="${kp}" stop-opacity="0"/></radialGradient>`
       +`<g data-pose="g" data-leg="1"><ellipse cx="133.4" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/><ellipse cx="166.6" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/></g>`; }
+  // props in front of her: over the body, but every piece of clothing is drawn on top of them.
+  // (they sit inside her moving groups, so the loop gives them a counter-transform that keeps them still on the floor)
+  if(live && Array.isArray(S.props) && S.props.some(p=>p.front)) g+=`<g class="propfront">${drawProps('front')}</g>`;
+  g+=suitG;
   // an untucked top hangs over the skirt: the skirt may only show below the top's hem, never poke out past its sides
   const underTop=h=>{
     if(!h || !S.wTop || S.tuck) return h;
@@ -2567,6 +2604,7 @@ function render(state=S){
   hd+=`<g style="opacity:var(--s-lines,0)" stroke="#e2557a" stroke-width="1.8" stroke-linecap="round"><path d="M121 117 l4 -7 M127.5 117 l4 -7 M134 117 l4 -7 M162 117 l4 -7 M168.5 117 l4 -7 M175 117 l4 -7"/></g>`;
   hd+=defaultHairFront(h,skin);
   hd+=drawEars(skin);
+  if(S.hairStyle==='asym') hd+=asymHairOver(h);
   if(S.wEyes) hd+=drawBlindfold(S.wEyesC||cloth(S.wEyes).c);
   if(S.wGlass && !S.wEyes) hd+=drawGlasses(S.wGlass, S.wGlassC||cloth(S.wGlass).c);
   // locks and strands that fall over the face lie on top of the blindfold
@@ -2930,7 +2968,7 @@ const SPREAD_MAX=8, HIP_PY=296;
 const legSpread=()=>Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))*FLOATFE*(1-KN10);
 // shyness 8 and up while floating: knees squeeze together and the shins splay out (an embarrassed knock-kneed pose).
 // KN10 eases 0 → 1; thighs turn in at the hip, then each shin turns out from its own knee.
-let KN10=0, kn10Applied=0;
+let KN10=0, kn10Applied=0, KNO=1, knoApplied=1;   // KNO: how far the shins splay (×KN_OUT) — level 9 splays more than 8; 10 eases back to 8's
 const KN_IN=4.0, KN_OUT=11, KNEE_PY=400;   // knees just meet (no crossing over), shins splay
 function rotAbout(x,y,px,py,deg){ const r=deg*Math.PI/180, c=Math.cos(r), sn=Math.sin(r), dx=x-px, dy=y-py; return [px+dx*c-dy*sn, py+dx*sn+dy*c]; }
 function knockKnee(x,y,k){
@@ -2940,14 +2978,14 @@ function knockKnee(x,y,k){
   if(y>KNEE_PY-6){
     const [kcx,kcy]=rotAbout(kx,KNEE_PY,px,HIP_PY,(L?-1:1)*KN_IN*k);
     const wb=Math.min(1,(y-(KNEE_PY-6))/16);
-    [x,y]=rotAbout(x,y,kcx,kcy,(L?1:-1)*KN_OUT*k*wb); // shin turns back out
+    [x,y]=rotAbout(x,y,kcx,kcy,(L?1:-1)*KN_OUT*KNO*k*wb); // shin turns back out
   }
   return [x,y];
 }
 function knockSkirt(x,y,k){
   // only the outward part matters for the cloth: below the knee, push it out as far as the feet go
   if(y<=KNEE_PY) return x;
-  const d=(y-KNEE_PY)*Math.sin(KN_OUT*k*Math.PI/180);
+  const d=(y-KNEE_PY)*Math.sin(KN_OUT*KNO*k*Math.PI/180);
   const t=Math.max(-1,Math.min(1,(x-150)/22));
   return x+d*t;
 }
@@ -3004,8 +3042,8 @@ let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0, SO
 const shrugBaseOf=()=>shrugK;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(SOB-sobApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && Math.abs(SKLIFT-skLiftApplied)<.04 && Math.abs(legSpread()-spreadApplied)<.01 && Math.abs(KN10-kn10Applied)<.004 && skFlapA<.03;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; sobApplied=SOB; floatApplied=FLOATFE; skLiftApplied=SKLIFT; spreadApplied=legSpread(); kn10Applied=KN10; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(SOB-sobApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && Math.abs(SKLIFT-skLiftApplied)<.04 && Math.abs(legSpread()-spreadApplied)<.01 && Math.abs(KN10-kn10Applied)<.004 && Math.abs(KNO-knoApplied)<.004 && skFlapA<.03;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; sobApplied=SOB; floatApplied=FLOATFE; skLiftApplied=SKLIFT; spreadApplied=legSpread(); kn10Applied=KN10; knoApplied=KNO; }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -3219,7 +3257,7 @@ let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipF
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
 let rainE=0, rainShown='';
-let floatK=0, floatLvShown=0, floatSide=1, pantE=0, pantShown=false, was10=false, sobT0=0, haloE=0, burstTm=0, sobShown='';
+let floatK=0, floatLvShown=0, floatSide=1, pantE=0, pantShown=false, was10=false, sobT0=0, haloE=0, burstTm=0, shakeTms=[], sobShown='';
 const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show the shoes
 // floating altitude above the base height: target, current position, speed (spring-damper)
 let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0, ldPos=0, ldV=0, lagT=.12;
@@ -3269,8 +3307,11 @@ let kneelE=0;
     const at10=atMax();
     if(at10 && !was10){ sobT0=t+900;
       think('event',{text:'ว้ายยยย!',force:true,raw:true,keep:true});
-      st.classList.remove('burst-on','shake10','startle10'); void st.offsetWidth; st.classList.add('burst-on','shake10','startle10');
-      clearTimeout(burstTm); burstTm=setTimeout(()=>st.classList.remove('burst-on','shake10','startle10'),1600); }
+      clearTimeout(burstTm);
+      // camera shake + light burst + body jolt three times: now, 1 s later, then 2 s after that
+      shakeTms.forEach(clearTimeout); shakeTms=[0,1000,3000].map(ms=>setTimeout(()=>{ st.classList.remove('shake10','burst-on','startle10'); void st.offsetWidth; st.classList.add('shake10','burst-on','startle10'); },ms));
+      shakeTms.push(setTimeout(()=>st.classList.remove('shake10','burst-on','startle10'),4600)); }
+    if(was10 && !at10){ shakeTms.forEach(clearTimeout); shakeTms=[]; st.classList.remove('shake10','burst-on','startle10'); }
     // coming down from 10: the heart kicks off again
     if(was10 && !at10) setTimeout(()=>think('event',{text:'อ๊ะ! เอาอีกแล้วหรอ!?',force:true,raw:true}),250);
     { const calling=at10 && Array.isArray(S.props) && S.props.some(p=>p.dance);
@@ -3308,7 +3349,8 @@ let kneelE=0;
   const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
   FLOATFE=fe;
   { const v=hLag*fe; if(Math.abs(v-hLagShown)>.02 || (v===0 && hLagShown!==0)){ hLagShown=v; st.style.setProperty('--hlag',v.toFixed(2)); } }
-  { const want=(fe>.01 && altSpeed()>=8)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe); }
+  { const want=(fe>.01 && altSpeed()>=8)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe);
+    const kw=altSpeed()===9?1.65:1; KNO+=(kw-KNO)*.06; if(Math.abs(KNO-kw)<.002) KNO=kw; }
   if(st.classList.contains('floating')!==(fe>.01)) st.classList.toggle('floating',fe>.01);
   { /* ---- one rhythm for the whole scene ----
        A "leader" spring bobs between the up/down ends at the tempo of the shyness level (1–9; it eases to a
@@ -3362,7 +3404,33 @@ let kneelE=0;
   $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=fe.toFixed(3));
   const sh=$('canvas').querySelector('.shoesg'); if(sh) sh.style.opacity=Math.max(0,1-e*2.2).toFixed(2);
   applyPose(poseK);
+  syncFrontProps();
 })(0);
+// front props live inside her moving groups (so clothes can be drawn over them): cancel every move of those groups.
+// Built by hand from each group's own transform (getCTM is unreliable in Safari): CSS/animated transforms come from
+// getComputedStyle (about each group's transform-origin), plain transform attributes from the SVG transform list.
+function syncFrontProps(){
+  const c=$('canvas'); if(!c) return;
+  const pf=c.querySelector('.propfront'); if(!pf) return;
+  try{
+    const chain=[]; for(let el=pf.parentNode; el && el.tagName && el.tagName.toLowerCase()!=='svg'; el=el.parentNode) chain.unshift(el);
+    let M=new DOMMatrix();
+    for(const el of chain){
+      const cs=getComputedStyle(el), tf=cs.transform;
+      if(tf && tf!=='none'){
+        const n=(tf.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)||[]).map(Number);
+        const m=n.length===16?new DOMMatrix(n):new DOMMatrix(n.slice(0,6));
+        const o=(cs.transformOrigin||'0 0').split(' ').map(parseFloat), ox=o[0]||0, oy=o[1]||0;
+        M=M.translate(ox,oy).multiply(m).translate(-ox,-oy);
+      } else {
+        const tl=el.transform&&el.transform.baseVal;
+        if(tl && tl.numberOfItems){ const s=tl.consolidate().matrix; M=M.multiply(new DOMMatrix([s.a,s.b,s.c,s.d,s.e,s.f])); }
+      }
+    }
+    const I=M.inverse();
+    pf.setAttribute('transform',`matrix(${[I.a,I.b,I.c,I.d,I.e,I.f].map(v=>(isFinite(v)?v:0).toFixed(4)).join(' ')})`);
+  }catch(e){}
+}
 
 /* ---------- every slider gets a number box (type a value), every number box gets a slider ---------- */
 function numClamp(inp,v){ const mn=+inp.min, mx=+inp.max, st=+inp.step||1; v=Math.max(mn,Math.min(mx,v)); return +(Math.round((v-mn)/st)*st+mn).toFixed(3); }
@@ -3454,6 +3522,7 @@ document.addEventListener('click',ev=>{ const b=ev.target.closest('[data-hstyle]
   if(S.hairStyle==='bun') think('event',{text:'เกล้าผมขึ้นไปไว้บนหัว... คอกับต้นคอโล่งไปหมด เย็นวาบเลย',force:true});
   if(S.hairStyle==='korean') think('event',{text:'รวบผมต่ำ แล้วดึงปอยหน้าลงมาข้างแก้มแบบสาวเกาหลี... ดูละมุนจนไม่กล้ามองกระจก',force:true});
   if(S.hairStyle==='framed') think('event',{text:'ปล่อยผมยาว มีปอยผมลงมาข้างแก้ม... มันจั๊กจี้แก้มตลอดเลย',force:true});
+  if(S.hairStyle==='asym') think('event',{text:'ทัดผมไว้ข้างเดียว อีกข้างปล่อยปิดหูไว้... หูข้างที่โล่งรู้สึกเย็นๆ แปลกดี',force:true});
   if(S.hairStyle==='half') think('event',{text:'แสกกลางแล้วรวบครึ่งหัวไปมัดไว้ข้างหลัง... ทรงนี้ดูเป็นผู้หญิงหวานๆ เกินไปหรือเปล่านะ',force:true}); });
 
 /* ---------- hairstyles: a foldable list of cards, laid out like the wardrobe ---------- */
@@ -3463,6 +3532,7 @@ const HAIRSTYLES=[
   {id:'wavylocks',ic:'🌊',name:'ปล่อยยาวลอน + ปอยข้างแก้ม',note:'ผมลอนยาว มีหน้าม้ายาวแสกลงข้างแก้ม'},
   {id:'framed',ic:'💇‍♀️',name:'ปล่อยปอยข้างแก้ม',note:'ผมยาวตรง มีหน้าม้ายาวแสกลงข้างแก้ม'},
   {id:'half',ic:'🎐',name:'มัดครึ่งหัว',note:'แสกกลาง ครึ่งบนรวบไปมัดข้างหลัง'},
+  {id:'asym',ic:'🌙',name:'ปิดหูข้างเดียว',note:'แสกกลาง ปล่อยปิดหูข้างหนึ่ง ทัดหูอีกข้าง'},
   {id:'korean',ic:'🌸',name:'รวบผมสไตล์เกาหลี',note:'รวบต่ำ มีหน้าม้ายาวแสกลงข้างแก้ม'},
   {id:'bun',ic:'🍡',name:'เกล้าผม',note:'แสกกลาง มวยรีหลังหัว'},
   {id:'bunlocks',ic:'🍡',name:'เกล้าผม + ปอยข้างแก้ม',note:'มวยรีหลังหัว มีหน้าม้ายาวแสกลงข้างแก้ม'}];
