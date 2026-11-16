@@ -2815,6 +2815,17 @@ const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
 let LEGON=false, SKIRTON=false, jointVer=0, jointApplied=-1;
 // skirts, dresses and coat hems: when a leg swings outward, the cloth on that side is pushed out with it
 // (each side follows its own leg, the middle splits the difference; legs swinging inward leave the cloth hanging)
+// floating skirts react to the lift: hem rises and flares (or trails down and narrows), with a flutter on top
+function skirtPhys(x,y){
+  const top=228, hem=Math.max(top+20,skirtLen()+6);
+  let w=Math.max(0,Math.min(1,(y-top)/(hem-top))); if(!w) return [x,y];
+  w=Math.pow(w,1.35);
+  const L=SKLIFT*FLOATFE, sg=x<150?-1:1, side=Math.min(1,Math.abs(x-150)/40);
+  y -= L*w;
+  x += sg*side*w*(L>0 ? L*.8 : L*.18);
+  y += Math.sin(skFlapPh + x*.17)*skFlapA*FLOATFE*w;
+  return [x,y];
+}
 function skirtFollow(x,y){
   const e=FLOATFE, w=Math.min(1,(y-HIP_Y)/14), aL=legJ('L').hip*e*w, aR=legJ('R').hip*e*w;
   const dL=aL>0?Math.min(0,rotPt(x,y,136,HIP_Y,aL)[0]-x):0;
@@ -2854,11 +2865,11 @@ function deformPath(d,k,hx,kn,F,Rp){
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
     if(LEGON && FLOATFE>0 && y>HIP_Y){ y=footY(y); [x,y]=legJoint(x,y); }
-    else if(SKIRTON && FLOATFE>0 && y>HIP_Y) x+=skirtFollow(x,y);
+    else if(SKIRTON && FLOATFE>0){ if(y>HIP_Y) x+=skirtFollow(x,y); if(Math.abs(SKLIFT)>.03||skFlapA>.03) [x,y]=skirtPhys(x,y); }
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && FLOATFE>0 && parseFloat(ys)>HIP_Y)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && FLOATFE>0 && parseFloat(ys)>HIP_Y) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
     return (x+hs).toFixed(2)+sep+RY(LEGON?y:footY(y)).toFixed(2);
@@ -2867,8 +2878,8 @@ function deformPath(d,k,hx,kn,F,Rp){
 let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && jointApplied===jointVer;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; jointApplied=jointVer; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && jointApplied===jointVer && Math.abs(SKLIFT-skLiftApplied)<.04 && skFlapA<.03;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; jointApplied=jointVer; skLiftApplied=SKLIFT; }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -2993,6 +3004,8 @@ let floatK=0, floatLvShown=0, floatSide=1;
 const FLOAT_RISE=56;
 // floating altitude above the base height: target, current position, speed (spring-damper)
 let floatAltT=0, altPos=0, altV=0, altLastT=0;
+let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
+const SK_K=55, SK_D=3.6, SK_IN=.9;
 const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=130;
 let kneelE=0;
 (function hipLoop(t){
@@ -3044,7 +3057,17 @@ let kneelE=0;
       // same height and lean at every level: 1–5 only sets how shy she is while floating
       // altitude follows its target on a soft spring: eases off, overshoots a little, settles
       const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
+      const v0=altV;
       altV += ((floatAltT-altPos)*ALT_K - altV*ALT_D)*dt; altPos += altV*dt;
+      if(dt>0){
+        // the cloth is a looser spring hanging off the body: when she shoots up it trails down, when she
+        // stops (or drops) it flips up and flutters before settling
+        const acc=(altV-v0)/dt;   // body acceleration (units/s²), up is positive
+        skLV += (-SK_K*SKLIFT - SK_D*skLV - acc*SK_IN)*dt; SKLIFT += skLV*dt;
+        SKLIFT=Math.max(-12,Math.min(16,SKLIFT));
+        skFlapPh += dt*(9+Math.min(14,Math.abs(skLV)*.2));
+        skFlapA += ((Math.min(3.4,Math.abs(skLV)*.06)) - skFlapA)*Math.min(1,dt*4);
+      }
       const rise=fe*(FLOAT_RISE+altPos)+Math.sin(t/1000)*4*fe;
       const lean=fe*(floatSide*4.5 + Math.sin(t/1700)*1.6);
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
