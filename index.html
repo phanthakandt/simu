@@ -272,7 +272,6 @@ body:not(.covered) .cover{display:none}
 .stage .floatfx{transition:opacity .6s}
 .stage .fspark{transform-box:fill-box;transform-origin:center;animation:fspark 3.6s ease-in infinite}
 @keyframes fspark{0%{transform:translateY(0) scale(.4);opacity:0}15%{opacity:1}70%{opacity:.9}100%{transform:translateY(-120px) scale(1);opacity:0}}
-.stage .floater{transform-box:view-box;transform-origin:150px 566px}
 .stage .mcircle .dash{animation:mspin 6s linear infinite}
 @keyframes mspin{to{stroke-dashoffset:-90}}
 .stage .maura{animation:maura 3.2s ease-in-out infinite}
@@ -2730,11 +2729,11 @@ setInterval(()=>{
   st.style.setProperty('--s-sweat',band(38,42));       // 4: a sweat drop
   st.style.setProperty('--s-sweat2',atMax()?1:0);
   st.style.setProperty('--s-bow',band(8,45));
-  shrugT=+band(20,40);
+  shrugT=floating()?0:+band(20,40);
   st.classList.toggle('shyhead', EMB.v > 25);           // 3: head starts to waver
   st.classList.toggle('flustered', EMB.v > 35);         // 4: hips start to sway
   st.classList.toggle('flusterfx-on', EMB.v > 35);      // 4: fluster marks
-  const kT=Math.max(0,Math.min(1,(EMB.v-15)/25));       // 2→4: knees press together
+  const kT=floating()?0:Math.max(0,Math.min(1,(EMB.v-15)/25));       // 2→4: knees press together (not while floating)
   poseK += (kT-poseK)*.06;
   shrugK += (shrugT-shrugK)*.05; if(Math.abs(shrugK-shrugT)<.002) shrugK=shrugT;
   applyPose(poseK);
@@ -2808,6 +2807,9 @@ function shrugShift(x,y){
   if(w<=0) return null;
   return [(x<150?1:-1)*shrugK*1.3*w, -shrugK*4.6*w];
 }
+// floating: feet hang with the toes pointing down, so each foot reads longer from the front
+let FLOATFE=0, floatApplied=0;
+const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
 function deformPath(d,k,hx,kn,F,Rp){
   // 1) fold the lower legs when kneeling, 2) knees toward the centre line, 3) hips slide sideways by hx
   return d.replace(/(-?\d+(?:\.\d+)?)([ ,]+)(-?\d+(?:\.\d+)?)/g,(m,xs,sep,ys)=>{
@@ -2816,17 +2818,17 @@ function deformPath(d,k,hx,kn,F,Rp){
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
-    return (x+hs).toFixed(2)+sep+RY(y).toFixed(2);
+    return (x+hs).toFixed(2)+sep+RY(footY(y)).toFixed(2);
   });
 }
 let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -2855,7 +2857,7 @@ function applyPose(k,force){
     }
     if(!el.dataset.d0) el.dataset.d0=el.getAttribute('d');
     const F=fOf(el), Rp=rOf(el);
-    el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
+    el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on && FLOATFE<.002) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
 }
 /* ---------- the player's own background pictures (several; tap one to switch) ----------
@@ -2944,20 +2946,20 @@ function paintCanvas(){ $('canvas').innerHTML=render(); const im=$('canvas').que
 let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipFrame=0, kneel=0, kneelWanted=false;
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
-let floatK=0;
+let floatK=0, floatLvShown=0, floatSide=1;
 let kneelE=0;
 (function hipLoop(t){
   requestAnimationFrame(hipLoop);
   if(t-lastHipFrame<16) return; lastHipFrame=t;
   const st=$('stage'); if(!st) return;
   // hips start a small shy wiggle from level 1 and build up steadily to level 9
-  const on=EMB.v>5 && !st.classList.contains('paused');
+  const on=EMB.v>5 && !floating() && !st.classList.contains('paused');
   const f=Math.max(0,Math.min(1,(EMB.v-10)/80));            // level 1 → 9
   hipAmp += ((on?1.6+5*f:0)-hipAmp)*.06;
   const hz=.45+Math.pow(f,1.5)*3.1;                          // slow sway at level 1 → ~3.5 sweeps/s at level 9
   hipPhase += hz*2*Math.PI*Math.min(.1,(t-(hipLastT||t))/1000); hipLastT=t;
   // at 100% she stops wriggling and freezes with her hips stuck out to one side
-  const holdWanted = atMax();
+  const holdWanted = atMax() && !floating();
   if(holdWanted && hipHold<.01) holdSide = Math.sin(hipPhase)>=0 ? 1 : -1;
   hipHold += ((holdWanted?1:0)-hipHold)*.08; if(hipHold<.001) hipHold=0;
   const sway = Math.abs(hipAmp)<.02 ? 0 : hipAmp*Math.sin(hipPhase);
@@ -2973,8 +2975,8 @@ let kneelE=0;
     flowHem = (typeof skirtLen==='function') ? skirtLen() : 300;
   }
   // kneeling: collapse when embarrassment passes 72%, stand back up below 62%
-  if(!kneelWanted && EMB.v>=47 && !S.float && !st.classList.contains('paused')){ kneelWanted=true; setTimeout(()=>think('event',{text:'ไม่ไหวแล้ว... ขาอ่อนจนทรุดลงไปคุกเข่า',force:true}),400); }
-  else if(kneelWanted && (EMB.v<43 || S.float)){ kneelWanted=false; setTimeout(()=>think('event',{text:'ค่อยๆ ลุกขึ้นยืน... ใจเย็นลงหน่อยแล้ว',force:true}),400); }
+  if(!kneelWanted && EMB.v>=47 && !floating() && !st.classList.contains('paused')){ kneelWanted=true; setTimeout(()=>think('event',{text:'ไม่ไหวแล้ว... ขาอ่อนจนทรุดลงไปคุกเข่า',force:true}),400); }
+  else if(kneelWanted && (EMB.v<43 || floating())){ kneelWanted=false; setTimeout(()=>think('event',{text:'ค่อยๆ ลุกขึ้นยืน... ใจเย็นลงหน่อยแล้ว',force:true}),400); }
   kneel += ((kneelWanted?1:0)-kneel)*.05;
   if(Math.abs(kneel)<.001) kneel=0;
   const tr=$('canvas').querySelector('.tremble'), kr=$('canvas').querySelector('.kneelrect');
@@ -2982,17 +2984,24 @@ let kneelE=0;
   if(tr) tr.style.transform=`translateY(${(poseK*2.4*(1-e)+e*(KNEEL_DROP+(BODY.on?KNEE_Y-RY(KNEE_Y):0))-heelLift()*(1-e)).toFixed(2)}px)`;
   kneelE=e;
   // floating: rise smoothly to the chosen height and bob gently there
-  floatK += ((S.float?1:0)-floatK)*.035; if(Math.abs(floatK)<.001) floatK=0;
-  const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
+  // floating (fantasy, levels 1–5): rise to the level's height, hang from the middle of the body and lean
+  const FL=+S.floatLv||0;
+  if(FL>0 && floatK<.02 && floatLvShown===0) floatSide=Math.random()<.5?-1:1;
+  floatLvShown += (FL-floatLvShown)*.035; if(Math.abs(floatLvShown-FL)<.002) floatLvShown=FL;
+  floatK = Math.min(1,floatLvShown);
+  const fe=floatK*floatK*(3-2*floatK), lv=floatLvShown, fl=$('canvas').querySelector('.floater');
+  FLOATFE=fe;
   if(fl){
-    if(!fe) fl.style.transform='';
+    if(fe<.001) fl.removeAttribute('transform');
     else {
+      const rise=lv*18+Math.sin(t/1000)*(2+lv*.8)*fe;
+      const lean=floatSide*lv*1.8 + Math.sin(t/1700)*(.8+lv*.5)*fe;
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
-      const rise=fe*(+S.floatH||60)-Math.sin(t/950)*5*fe, top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-8-rise)/Math.max(1,566-top));
-      fl.style.transform=`translateY(${(-rise).toFixed(2)}px) scale(${k.toFixed(4)})`;
+      const top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-14-rise)/Math.max(1,566-top));
+      fl.setAttribute('transform',`translate(0 ${(-rise).toFixed(2)}) translate(150 566) scale(${k.toFixed(4)}) translate(-150 -566) rotate(${lean.toFixed(2)} 150 330)`);
     }
   }
-  $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=fe.toFixed(3));
+  $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=(fe*(.55+Math.min(5,lv)*.09)).toFixed(3));
   const sh=$('canvas').querySelector('.shoesg'); if(sh) sh.style.opacity=Math.max(0,1-e*2.2).toFixed(2);
   applyPose(poseK);
 })(0);
@@ -3539,23 +3548,26 @@ const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura
   <ellipse class="maura" cx="150" cy="330" rx="120" ry="250" fill="url(#faura)"/></g>`;
 const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
+const floating=()=>(+S.floatLv||0)>0;
+if(S.float && S.floatLv==null){ S.floatLv=3; } delete S.float;   // the earlier on/off switch becomes level 3
+const FLOAT_WORDS=['ยืนบนพื้น','ลอยปริ่มพื้น','ลอยพ้นพื้น','ลอยกลางอากาศ','ลอยสูง','ลอยสูงมาก'];
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
-  const h=+S.floatH||60;
+  const L=+S.floatLv||0;
   r.style.flexWrap='wrap';
-  r.innerHTML=`<button class="btn small ${S.float?'primary':''}" data-float="1">${S.float?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ โหมดแฟนตาซี: ลอยตัว'}</button>`
-    +(S.float?`<span class="len-row" style="flex-basis:100%;margin:0"><span>ความสูง</span><input type="range" class="slider" min="20" max="120" step="1" value="${h}" data-floath="1" aria-label="ความสูงที่ลอย"></span>`:'');
-  if(typeof enhanceInputs==='function') enhanceInputs(r);
+  r.innerHTML=`<span class="mini-label" style="flex-basis:100%;margin:0">✨ ลอยตัว (แฟนตาซี) · ${FLOAT_WORDS[L]}</span><span class="seg">${[0,1,2,3,4,5].map(i=>`<button class="${i===L?'on':''}" data-floatlv="${i}" aria-label="${i?'ลอยระดับ '+i:'ไม่ลอย'}">${i?i:'ไม่ลอย'}</button>`).join('')}</span>`;
 }
+const FLOAT_LV_TH=[null,
+  ['เอ๊ะ!? เท้า… ไม่แตะพื้น…?','อ๊ะ… ตัวลอยขึ้นมานิดนึง…!?'],
+  ['ตัวลอยพ้นพื้นแล้ว… จริงเหรอเนี่ย','เท้าลอยอยู่… ไม่มีอะไรรองรับเลย'],
+  ['ลอยอยู่กลางอากาศ… ตัวเอียงไปข้างนึงด้วย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก'],
+  ['สูงขึ้นอีกแล้ว… ไม่กล้ามองลงไปเลย','ตัวเอนไปเอนมา… คุมไม่ได้เลย'],
+  ['ส-สูงเกินไปแล้ว…!','อ๊ะ! ลอยสูงขนาดนี้… จะลงยังไง…']];
 document.addEventListener('click',ev=>{
-  const b=ev.target.closest('[data-float]'); if(!b) return;
-  S.float=!S.float; persist(); floatRow();
-  const L=embLevel(EMB.v);
-  think('event',{text:S.float?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
-});
-document.addEventListener('input',ev=>{
-  const r=ev.target.closest('[data-floath]'); if(!r) return;
-  const v=parseFloat(r.value); if(isNaN(v)) return; S.floatH=Math.max(20,Math.min(120,v)); persist();
+  const b=ev.target.closest('[data-floatlv]'); if(!b) return;
+  const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
+  S.floatLv=L; persist(); floatRow();
+  think('event',{text:L?pick(FLOAT_LV_TH[L]):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
 });
 setTimeout(floatRow,0);
 
@@ -3614,7 +3626,7 @@ function think(kind, opt={}){
     // the more flustered, the more often she can't form a thought at all
     const L0=embLevel(EMB.v);
     if(kind==='idle' && L0>=1 && L0<=9 && Math.random()<Math.min(.85,.15+L0*.08)){ src=STAMMER[L0]; opt={...opt,raw:true}; }
-    else if(kind==='idle' && S.float && Math.random()<.4) src=FLOAT_TH;
+    else if(kind==='idle' && floating() && Math.random()<.4) src=FLOAT_TH;
     const pool=src.filter(t=>t!==lastThought);
     if(!pool.length) return;
     text=pick(pool);
