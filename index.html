@@ -2550,7 +2550,7 @@ function renderPanel(){
   $('panelBody').innerHTML=h;
 }
 
-function update(){ paintCanvas(); renderPanel(); persist(); }
+function update(){ paintCanvas(); renderPanel(); persist(); if(typeof floatRow==='function' && floating()) floatRow(); }
 
 document.addEventListener('click',ev=>{
   let after=null;
@@ -2823,7 +2823,17 @@ function skirtFollow(x,y){
   return dL*t+dR*(1-t);
 }
 const HIP_Y=296, KNEE_J=400, ANK_Y=540;
-function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}; return {hip:+J.hip||0,knee:+J.knee||0,ank:+J.ank||0}; }
+// a tight skirt or dress (pencil, sequin, qipao, slim slip dress) holds the thighs together: each leg can only swing
+// out as far as the hem has room for. A slit gives more room; loose skirts don't limit anything.
+function spreadLimit(){
+  let tight=false, slack=10;
+  if(S.wDress){ const f=flowFactor('dress'); tight=f>0 && f<=.3; if(S.wDress==='qipao') slack=32; }
+  else if(S.wBottom){ const f=flowFactor('bottom'); tight=f>0 && f<=.3; if(S.wBottom==='slitskirt') slack=26; }
+  if(!tight) return null;
+  const drop=skirtLen()-HIP_Y; if(drop<=slack) return null;   // too short to hold the legs
+  return Math.asin(slack/drop)*180/Math.PI;
+}
+function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}, lim=spreadLimit(); let hip=+J.hip||0; if(lim!=null && hip>lim) hip=lim; return {hip,knee:+J.knee||0,ank:+J.ank||0}; }
 function rotPt(x,y,px,py,deg){ const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a), dx=x-px, dy=y-py; return [px+dx*c-dy*s, py+dx*s+dy*c]; }
 function legJoint(x,y){
   if(y<=HIP_Y) return [x,y];
@@ -3597,6 +3607,7 @@ function jointHTML(){
   const sync=S.legSync!==false, side=sync?'L':jointSide, J=legJ(side);
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <div class="pat-row" style="margin-bottom:4px"><button class="pat ${sync?'on':''}" data-jside="both">สองข้างพร้อมกัน</button><button class="pat ${!sync&&side==='L'?'on':''}" data-jside="L">ขาฝั่งซ้ายจอ</button><button class="pat ${!sync&&side==='R'?'on':''}" data-jside="R">ขาฝั่งขวาจอ</button></div>
+    ${(()=>{ const lim=spreadLimit(); return lim!=null?`<span class="lock-note" style="font-size:12px">กระโปรงรัดต้นขาอยู่ อ้าขาได้สุด ${Math.round(lim)}° ต่อข้าง</span>`:''; })()}
     ${JOINTS.map(([k,n,a,b,mn,mx])=>`<span class="mini-label">${n} <small>(${a} ← → ${b})</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="${mn}" max="${mx}" step="1" value="${J[k]}" data-joint="${k}" aria-label="${n} (องศา)"><span class="nb-unit">°</span></span>`).join('')}
     <div class="pat-row" style="margin-top:6px"><button class="pat" data-jreset="1">↺ ขาตรงเหมือนเดิม</button></div></div>`;
 }
