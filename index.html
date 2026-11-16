@@ -2834,10 +2834,15 @@ function skirtPhys(x,y){
   // the hem may lift only as far as the skirt's own length allows: a short skirt never rides up past the hips
   // (it flares out a little instead), a long one has room to lift and flutter
   const room=Math.max(0,Math.min(10,(hem-300)*.1)), soft=Math.max(.2,Math.min(1,(hem-290)/70));
-  const L0=SKLIFT*FLOATFE, L=L0>0?Math.min(L0,room):L0, sg=x<150?-1:1, side=Math.min(1,Math.abs(x-150)/40);
+  // soft limit: big swings ease into the end (about −11 … +14) rather than hitting a wall
+  const Ls=SKLIFT>0?14*Math.tanh(SKLIFT/14):11*Math.tanh(SKLIFT/11), L0=Ls*FLOATFE, L=L0>0?Math.min(L0,room):L0, sg=x<150?-1:1, side=Math.min(1,Math.abs(x-150)/40);
   y -= L*w;
   x += sg*side*w*(L0>0 ? Math.min(L0,6+room)*.8 : L0*.18);
-  y += Math.max(-room,Math.sin(skFlapPh + x*.17)*skFlapA*FLOATFE*soft)*w;
+  // flutter: the whole hem opens and closes together (no travelling wave across the pleats, which tore the hem
+  // into a saw-tooth when it closed), with a small bounce that never lifts a short skirt
+  const fl=Math.sin(skFlapPh)*skFlapA*FLOATFE*soft;
+  x += sg*side*w*fl*.9;
+  y += Math.max(-room,Math.sin(skFlapPh+1.3)*skFlapA*FLOATFE*soft*.35)*w;
   return [x,y];
 }
 function deformPath(d,k,hx,kn,F,Rp){
@@ -3055,7 +3060,8 @@ let kneelE=0;
         // stops (or drops) it flips up and flutters before settling
         const acc=(altV-v0)/dt;   // body acceleration (units/s²), up is positive
         skLV += (-SK_K*SKLIFT - SK_D*skLV - acc*SK_IN)*dt; SKLIFT += skLV*dt;
-        SKLIFT=Math.max(-12,Math.min(16,SKLIFT));
+        // stop at the ends instead of pinning there with speed still building (that made the hem stall, then snap)
+        if(SKLIFT<-24){ SKLIFT=-24; if(skLV<0) skLV=0; } else if(SKLIFT>24){ SKLIFT=24; if(skLV>0) skLV=0; }
         skFlapPh += dt*(9+Math.min(14,Math.abs(skLV)*.2));
         skFlapA += ((Math.min(3.4,Math.abs(skLV)*.06)) - skFlapA)*Math.min(1,dt*4);
       }
