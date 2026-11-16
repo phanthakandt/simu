@@ -2808,9 +2808,8 @@ function shrugShift(x,y){
   if(w<=0) return null;
   return [(x<150?1:-1)*shrugK*1.3*w, -shrugK*4.6*w];
 }
-// floating: feet hang with the toes pointing down, so each foot reads longer from the front
 let FLOATFE=0, floatApplied=0;
-const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
+const footY=y=>y;   // feet keep their normal shape while floating
 let SKIRTON=false;
 // floating skirts react to the lift: hem rises and flares (or trails down and narrows), with a flutter on top
 function skirtPhys(x,y){
@@ -3032,7 +3031,7 @@ let kneelE=0;
         skFlapA += ((Math.min(3.4,Math.abs(skLV)*.06)) - skFlapA)*Math.min(1,dt*4);
       }
       const rise=fe*(FLOAT_RISE+altPos)+Math.sin(t/1000)*4*fe;
-      const lean=fe*(floatSide*4.5 + Math.sin(t/1700)*1.6);
+      const lean=0;   // upright, like standing — just off the ground
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
       const top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-14-rise)/Math.max(1,566-top));
       fl.setAttribute('transform',`translate(0 ${(-rise).toFixed(2)}) translate(150 566) scale(${k.toFixed(4)}) translate(-150 -566) rotate(${lean.toFixed(2)} 150 330)`);
