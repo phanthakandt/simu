@@ -2947,6 +2947,7 @@ let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipF
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
 let floatK=0, floatLvShown=0, floatSide=1;
+const FLOAT_RISE=56;
 let kneelE=0;
 (function hipLoop(t){
   requestAnimationFrame(hipLoop);
@@ -2986,22 +2987,23 @@ let kneelE=0;
   // floating: rise smoothly to the chosen height and bob gently there
   // floating (fantasy, levels 1–5): rise to the level's height, hang from the middle of the body and lean
   const FL=+S.floatLv||0;
-  if(FL>0 && floatK<.02 && floatLvShown===0) floatSide=Math.random()<.5?-1:1;
+  if(FL>0 && floatK<.02) floatSide=Math.random()<.5?-1:1;
   floatLvShown += (FL-floatLvShown)*.035; if(Math.abs(floatLvShown-FL)<.002) floatLvShown=FL;
-  floatK = Math.min(1,floatLvShown);
-  const fe=floatK*floatK*(3-2*floatK), lv=floatLvShown, fl=$('canvas').querySelector('.floater');
+  floatK += ((FL>0?1:0)-floatK)*.035; if(Math.abs(floatK-(FL>0?1:0))<.001) floatK=FL>0?1:0;
+  const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
   FLOATFE=fe;
   if(fl){
     if(fe<.001) fl.removeAttribute('transform');
     else {
-      const rise=lv*18+Math.sin(t/1000)*(2+lv*.8)*fe;
-      const lean=floatSide*lv*1.8 + Math.sin(t/1700)*(.8+lv*.5)*fe;
+      // same height and lean at every level: 1–5 only sets how shy she is while floating
+      const rise=fe*FLOAT_RISE+Math.sin(t/1000)*4*fe;
+      const lean=fe*(floatSide*4.5 + Math.sin(t/1700)*1.6);
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
       const top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-14-rise)/Math.max(1,566-top));
       fl.setAttribute('transform',`translate(0 ${(-rise).toFixed(2)}) translate(150 566) scale(${k.toFixed(4)}) translate(-150 -566) rotate(${lean.toFixed(2)} 150 330)`);
     }
   }
-  $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=(fe*(.55+Math.min(5,lv)*.09)).toFixed(3));
+  $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=fe.toFixed(3));
   const sh=$('canvas').querySelector('.shoesg'); if(sh) sh.style.opacity=Math.max(0,1-e*2.2).toFixed(2);
   applyPose(poseK);
 })(0);
@@ -3550,24 +3552,19 @@ const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
 const floating=()=>(+S.floatLv||0)>0;
 if(S.float && S.floatLv==null){ S.floatLv=3; } delete S.float;   // the earlier on/off switch becomes level 3
-const FLOAT_WORDS=['ยืนบนพื้น','ลอยปริ่มพื้น','ลอยพ้นพื้น','ลอยกลางอากาศ','ลอยสูง','ลอยสูงมาก'];
+const FLOAT_WORDS=['ยืนบนพื้น','ลอยอยู่ · เขินระดับ 1','ลอยอยู่ · เขินระดับ 2','ลอยอยู่ · เขินระดับ 3','ลอยอยู่ · เขินระดับ 4','ลอยอยู่ · เขินระดับ 5'];
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
   const L=+S.floatLv||0;
   r.style.flexWrap='wrap';
-  r.innerHTML=`<span class="mini-label" style="flex-basis:100%;margin:0">✨ ลอยตัว (แฟนตาซี) · ${FLOAT_WORDS[L]}</span><span class="seg">${[0,1,2,3,4,5].map(i=>`<button class="${i===L?'on':''}" data-floatlv="${i}" aria-label="${i?'ลอยระดับ '+i:'ไม่ลอย'}">${i?i:'ไม่ลอย'}</button>`).join('')}</span>`;
+  r.innerHTML=`<span class="mini-label" style="flex-basis:100%;margin:0">✨ ลอยตัว (แฟนตาซี) · ${FLOAT_WORDS[L]}${L?' <small>(อาการแต่ละระดับยังไม่กำหนด)</small>':''}</span><span class="seg">${[0,1,2,3,4,5].map(i=>`<button class="${i===L?'on':''}" data-floatlv="${i}" aria-label="${i?'ลอยระดับ '+i:'ไม่ลอย'}">${i?i:'ไม่ลอย'}</button>`).join('')}</span>`;
 }
-const FLOAT_LV_TH=[null,
-  ['เอ๊ะ!? เท้า… ไม่แตะพื้น…?','อ๊ะ… ตัวลอยขึ้นมานิดนึง…!?'],
-  ['ตัวลอยพ้นพื้นแล้ว… จริงเหรอเนี่ย','เท้าลอยอยู่… ไม่มีอะไรรองรับเลย'],
-  ['ลอยอยู่กลางอากาศ… ตัวเอียงไปข้างนึงด้วย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก'],
-  ['สูงขึ้นอีกแล้ว… ไม่กล้ามองลงไปเลย','ตัวเอนไปเอนมา… คุมไม่ได้เลย'],
-  ['ส-สูงเกินไปแล้ว…!','อ๊ะ! ลอยสูงขนาดนี้… จะลงยังไง…']];
+// symptoms for float-shyness 1–5 are still to be decided; for now only lifting off / landing speaks
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
   S.floatLv=L; persist(); floatRow();
-  think('event',{text:L?pick(FLOAT_LV_TH[L]):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
+  if(!prev || !L) think('event',{text:L?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
 });
 setTimeout(floatRow,0);
 
