@@ -58,9 +58,9 @@ h1 span{color:var(--accent)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* idle animation */
-.stage .fig{transform-box:view-box;transform-origin:150px 566px;animation:sway 5.2s ease-in-out infinite}
+.stage .fig{transform-box:view-box;transform-origin:150px 566px}   /* no idle side-to-side sway */
 .stage .breath{transform-box:view-box;transform-origin:150px 566px;animation:breath 3.4s ease-in-out infinite}
-.stage .head{transform-box:view-box;transform-origin:150px 128px;animation:tilt 5.2s ease-in-out infinite}
+.stage .head{transform-box:view-box;transform-origin:150px 128px}   /* no idle head tilt */
 .stage .hopper{transform-box:view-box;transform-origin:150px 566px}
 .stage.hop .hopper{animation:hop .62s cubic-bezier(.3,.7,.4,1)}
 .stage.paused .fig,.stage.paused .breath,.stage.paused .head{animation-play-state:paused}
