@@ -590,7 +590,7 @@ const FLOOR_Y=566, PROP_LIFT_MAX=220;
 /* dancing props: they bob with the shyness level (1–9; still at 0 and 10), always a little AHEAD of her —
    up first, down first. When she is floating and bobbing they lead her own motion; otherwise they keep the
    same tempo on their own. */
-let propPh=0, propLastT=0, propDanceE=0;
+let propCalmE=0;
 function propDancePeriod(lv){ return .70*Math.pow(Math.max(1,lv),-.33); }   // matches her bob tempo per level
 function drawProps(){
   const ps=Array.isArray(S.props)?S.props:[];
@@ -3224,7 +3224,10 @@ let kneelE=0;
   if(tr) tr.style.transform=`translateY(${(poseK*2.4*(1-e)+e*(KNEEL_DROP+(BODY.on?KNEE_Y-RY(KNEE_Y):0))-heelLift()*(1-e)).toFixed(2)}px)`;
   kneelE=e;
   { // dancing props
-    const leadDy = pAlt;   // the scene's leader rhythm (+ = up); it starts, turns and settles before she does
+    // at shyness 10 she freezes, but the props keep drifting softly — a slow, small sway instead of a dead stop
+    const lv10=Math.max(0,Math.min(10,embLevel(EMB.v)))>=10 && !st.classList.contains('paused');
+    propCalmE+=((lv10?1:0)-propCalmE)*.03; if(propCalmE<.002 && !lv10) propCalmE=0;
+    const leadDy = pAlt + propCalmE*3.2*Math.sin(t/1000*2*Math.PI/1.9);   // + = up
     $('canvas').querySelectorAll('.prop').forEach(g=>{
       const p=(S.props||[])[+g.dataset.pi], mv=g.firstElementChild&&g.querySelector('.propmv'); if(!mv) return;
       const dy=(p&&p.dance)?leadDy:0;
