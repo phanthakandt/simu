@@ -2371,7 +2371,7 @@ function render(state=S){
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
   // arms first: they go behind the back, so the body hides the forearms
   g+=[ARM_L,ARM_R].map((a,i)=>`<path data-pose="1" d="${armPath(a,'full',armInset())}" stroke="${skE}" stroke-width="12.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full',armInset())}" stroke="${skin}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full')}" stroke="url(#lit)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path data-pose="1" d="${armPath(a,'full')}" stroke="#4a2418" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${i?.10:.05}" transform="translate(${i?2.4:2} 0)" filter="url(#soft2)"/>`).join('');
-  g+=drawOuterBack();
+  g+=`<g data-skirt="1">${drawOuterBack()}</g>`;
   g+=drawTopBackSleeves();
   // body
   g+=`<path data-pose="1" data-leg="1" d="${BODY_L}" fill="${skin}"/><path data-pose="1" data-leg="1" d="${BODY_R}" fill="${skin}"/><path data-pose="1" d="M150 118 L150 200 L150 215 L150 230 L150 245 L150 260 L150 287" stroke="${skin}" stroke-width="2.4" fill="none"/>`;
@@ -2422,7 +2422,7 @@ function render(state=S){
     const d=`M${f(ys[0][0]+.5)} 120 L${f(300-ys[0][0]-.5)} 120 ${right} ${left} Z`;
     return `<clipPath id="undertop"><path data-pose="1" d="${d}"/></clipPath><g clip-path="url(#undertop)">${h}</g>`;
   };
-  const drawBot=()=> (S.wBottom && CLOTH_DRAW[S.wBottom]) ? `<g data-pose="g"${flowFactor('bottom')?` data-flow="${flowFactor('bottom')}" data-rip="${rippleFactor('bottom')}"`:''}>${withPattern(stripBand(CLOTH_DRAW[S.wBottom](S.wBottomC||cloth(S.wBottom).c)),'bottom')}</g>` : '';
+  const drawBot=()=> (S.wBottom && CLOTH_DRAW[S.wBottom]) ? `<g data-pose="g" data-skirt="1"${flowFactor('bottom')?` data-flow="${flowFactor('bottom')}" data-rip="${rippleFactor('bottom')}"`:''}>${withPattern(stripBand(CLOTH_DRAW[S.wBottom](S.wBottomC||cloth(S.wBottom).c)),'bottom')}</g>` : '';
   // under a jacket the inner top's own sleeves are squashed inside the jacket sleeves: hide anything outside the torso up there
   // and below the armpit nothing of it may stick out past the jacket's sides, down to the jacket's hem
   const OUT_CLIP={
@@ -2447,9 +2447,9 @@ function render(state=S){
   if(S.wSocks && cloth(S.wSocks)) g+=`<g data-pose="g" data-leg="1">${drawSocks()}</g>`;
   if(S.wShoes && CLOTH_DRAW[S.wShoes]) g+=`<g data-pose="g" data-leg="1">${CLOTH_DRAW[S.wShoes](S.wShoesC||cloth(S.wShoes).c)}</g>`;
   const beltG = S.wBelt ? `<g data-pose="g">${drawBelt()}</g>` : '';
-  if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
+  if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g" data-skirt="1"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
   else g+= S.tuck && S.wBottom ? `<clipPath id="tuckc"><rect x="0" y="0" width="300" height="${(BODY.on?ryB(BODY,bottomWaist()+.6):bottomWaist()+.6).toFixed(2)}"/></clipPath><g clip-path="url(#tuckc)">${drawTopG()}</g>`+drawBot()+beltG : (beltLocked() ? underTop(drawBot()+beltG)+drawTopG() : underTop(drawBot())+drawTopG()+beltG);
-  g+=drawOuterFront();
+  g+=`<g data-skirt="1">${drawOuterFront()}</g>`;
   g+=collarOverOuter();
   g+=bodySweat();
   // faceless head
@@ -2812,7 +2812,16 @@ let FLOATFE=0, floatApplied=0;
 const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
 /* ---------- leg joints while floating: hip (swing in/out), knee (bend back), ankle (turn the foot) ----------
    Only the legs and what's worn on them (socks, shoes) follow; skirts and dresses keep hanging as they are. */
-let LEGON=false, jointVer=0, jointApplied=-1;
+let LEGON=false, SKIRTON=false, jointVer=0, jointApplied=-1;
+// skirts, dresses and coat hems: when a leg swings outward, the cloth on that side is pushed out with it
+// (each side follows its own leg, the middle splits the difference; legs swinging inward leave the cloth hanging)
+function skirtFollow(x,y){
+  const e=FLOATFE, w=Math.min(1,(y-HIP_Y)/14), aL=legJ('L').hip*e*w, aR=legJ('R').hip*e*w;
+  const dL=aL>0?Math.min(0,rotPt(x,y,136,HIP_Y,aL)[0]-x):0;
+  const dR=aR>0?Math.max(0,rotPt(x,y,164,HIP_Y,-aR)[0]-x):0;
+  let t=Math.max(0,Math.min(1,(172-x)/44)); t=t*t*(3-2*t);
+  return dL*t+dR*(1-t);
+}
 const HIP_Y=296, KNEE_J=400, ANK_Y=540;
 function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}; return {hip:+J.hip||0,knee:+J.knee||0,ank:+J.ank||0}; }
 function rotPt(x,y,px,py,deg){ const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a), dx=x-px, dy=y-py; return [px+dx*c-dy*s, py+dx*s+dy*c]; }
@@ -2833,10 +2842,11 @@ function deformPath(d,k,hx,kn,F,Rp){
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
     if(LEGON && FLOATFE>0 && y>HIP_Y){ y=footY(y); [x,y]=legJoint(x,y); }
+    else if(SKIRTON && FLOATFE>0 && y>HIP_Y) x+=skirtFollow(x,y);
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !(LEGON && FLOATFE>0 && parseFloat(ys)>HIP_Y)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && FLOATFE>0 && parseFloat(ys)>HIP_Y)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
     return (x+hs).toFixed(2)+sep+RY(LEGON?y:footY(y)).toFixed(2);
@@ -2854,8 +2864,8 @@ function applyPose(k,force){
   const ptOf=(x,y,F,Rp)=>{ const m=/(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(deformPath(`M${x} ${y}`,k,hipX,kneelE,F,Rp)); return [+m[1],+m[2]]; };
   c.querySelectorAll(sel).forEach(el=>{
     const tag=el.tagName;
-    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':'0');
-    LEGON=el.dataset.lg==='1';
+    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':el.closest('[data-skirt]')?'2':'0');
+    LEGON=el.dataset.lg==='1'; SKIRTON=el.dataset.lg==='2';
     // badges, pins, buttons: things sewn onto the cloth ride along with the point they're attached to
     // printed patterns: shear the fill so the print rides along with the cloth (top of the garment and its hem)
     if(el.classList && el.classList.contains('patfill')){
@@ -2879,7 +2889,7 @@ function applyPose(k,force){
     const F=fOf(el), Rp=rOf(el);
     el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on && FLOATFE<.002) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
-  LEGON=false;
+  LEGON=false; SKIRTON=false;
 }
 /* ---------- the player's own background pictures (several; tap one to switch) ----------
    Kept only in this browser — never part of the page itself, so they aren't published anywhere.
