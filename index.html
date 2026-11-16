@@ -2550,7 +2550,7 @@ function renderPanel(){
   $('panelBody').innerHTML=h;
 }
 
-function update(){ paintCanvas(); renderPanel(); persist(); if(typeof floatRow==='function' && floating()) floatRow(); }
+function update(){ paintCanvas(); renderPanel(); persist(); if(typeof floatRow==='function') floatRow(); }
 
 document.addEventListener('click',ev=>{
   let after=null;
@@ -2637,7 +2637,8 @@ $('stage').addEventListener('click',e=>{
   lastTapLine=pick(pool); think('event',{text:lastTapLine,force:true});
 });
 $('stage').addEventListener('animationend',e=>{ if(e.animationName==='hop') $('stage').classList.remove('hop'); });
-$('btnReset').onclick=()=>{ S=clone(DEFAULT); update(); toast('กลับไปลุคเริ่มต้น'); };
+$('btnReset').onclick=()=>{ const keep=floatKeep(); S=clone(DEFAULT); Object.assign(S,keep); update(); toast('กลับไปลุคเริ่มต้น'); };
+function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown}; }
 
 /* ---------- saved looks ---------- */
 let looks=[];
@@ -2649,12 +2650,12 @@ function renderLooks(){
     : `<div class="empty">ยังไม่มีลุคที่เก็บไว้ กด ♡ เก็บลุคนี้ เมื่อแต่งได้ถูกใจ</div>`;
   $('looks').querySelectorAll('.look').forEach((el,i)=>{ const sv=el.querySelector('svg'); if(sv && looks[i]) bodyStatic(sv,looks[i]); });
 }
-$('btnSave').onclick=()=>{ looks.unshift(clone(S)); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
+$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
 $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
   const l=ev.target.closest('[data-load]');
-  if(l){ S=clone(looks[+l.dataset.load]); update(); toast('ใส่ลุคที่เก็บไว้แล้ว'); }
+  if(l){ const keep=floatKeep(); S=clone(looks[+l.dataset.load]); Object.assign(S,keep); update(); toast('ใส่ลุคที่เก็บไว้แล้ว'); }
 });
 
 let tt;
@@ -3618,7 +3619,7 @@ function altHTML(){
 }
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
-  const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
+  const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev){ floatRow(); return; }
   S.floatLv=L; if(!L){ floatAltT=0; } persist(); floatRow();
   if(!prev || !L) think('event',{text:L?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
 });
