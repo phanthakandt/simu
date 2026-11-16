@@ -410,7 +410,7 @@ body:not(.covered) .cover{display:none}
       <div class="testrow" id="floatRow"></div>
       <div class="testrow" id="photoRow"></div>
       <div class="testrow" id="musicRow" style="flex-wrap:wrap"></div>
-      <input type="file" id="musicFile" accept="audio/*" multiple hidden>
+      <input type="file" id="musicFile" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.webm,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/ogg" multiple hidden>
       <input type="file" id="photoFile" accept="image/*" multiple hidden>
     </div>
 
@@ -3116,6 +3116,13 @@ let audioUrl=null, musVolNow=0, musPlaying=false;
 const musDB=(()=>{ let p=null; return ()=>p||(p=new Promise((res,rej)=>{ try{ const r=indexedDB.open('dressup_music',1);
   r.onupgradeneeded=()=>r.result.createObjectStore('tracks',{keyPath:'id'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } })); })();
 const musTx=(mode,fn)=>musDB().then(db=>new Promise((res,rej)=>{ const t=db.transaction('tracks',mode), st=t.objectStore('tracks'); const out=fn(st); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out); t.onerror=()=>rej(t.error); }));
+// audio type from the file name when the browser doesn't report one (common for .mp3 on iPhone): a blob URL
+// without the right type won't play in Safari
+const MUS_MIME={mp3:'audio/mpeg',m4a:'audio/mp4',mp4:'audio/mp4',aac:'audio/aac',wav:'audio/wav',ogg:'audio/ogg',oga:'audio/ogg',opus:'audio/ogg',flac:'audio/flac',webm:'audio/webm'};
+const musMime=f=>{ const ext=(String(f.name||'').match(/\.([a-z0-9]+)$/i)||[])[1]; const m=ext&&MUS_MIME[ext.toLowerCase()];
+  return (f.type && f.type!=='application/octet-stream' && f.type!=='audio/mp3') ? f.type : (m||f.type||'audio/mpeg'); };
+// tracks are stored as raw bytes + type (Safari can fail to store File/Blob objects in IndexedDB); older ones kept a blob
+function musRec(t){ if(!t) return null; if(t.blob) return t; if(t.buf) return {id:t.id,name:t.name,blob:new Blob([t.buf],{type:t.type||'audio/mpeg'})}; return null; }
 function musLoadTrack(id,autoplay){
   const tr=TRACKS.find(t=>t.id===id); if(!tr) return;
   if(audioUrl) URL.revokeObjectURL(audioUrl);
@@ -3131,11 +3138,12 @@ function musPlay(){
   musRow();
 }
 function musPause(){ audio.pause(); musPlaying=false; musRow(); }
+audio.addEventListener('error',()=>{ if(!audio.getAttribute('src')) return; musPlaying=false; toast('เปิดไฟล์เพลงนี้ไม่ได้ ลองไฟล์อื่นหรือแปลงเป็น mp3'); musRow(); });
 audio.addEventListener('ended',()=>{ if(!MUS.loop){ musPlaying=false; musRow(); } });
 // follow the shyness level smoothly
 setInterval(()=>{ if(!musPlaying) return; const tg=musTarget(); musVolNow+=(tg-musVolNow)*.25; if(Math.abs(tg-musVolNow)<.003) musVolNow=tg; audio.volume=Math.max(0,Math.min(1,musVolNow)); const lb=document.querySelector('#musicRow .musnow'); if(lb) lb.textContent=Math.round(musVolNow*100)+'%'; },120);
 async function musInit(){
-  try{ TRACKS=(await musTx('readonly',st=>st.getAll()))||[]; TRACKS.sort((a,b)=>a.id<b.id?-1:1); }catch(e){ TRACKS=[]; }
+  try{ TRACKS=((await musTx('readonly',st=>st.getAll()))||[]).map(musRec).filter(Boolean); TRACKS.sort((a,b)=>a.id<b.id?-1:1); }catch(e){ TRACKS=[]; }
   if(MUS.cur && TRACKS.some(t=>t.id===MUS.cur)) musLoadTrack(MUS.cur,false); else if(TRACKS[0]) musLoadTrack(TRACKS[0].id,false);
   musRow();
 }
@@ -3184,13 +3192,17 @@ document.addEventListener('change',async ev=>{
   if(ev.target.id!=='musicFile') return;
   const files=[...(ev.target.files||[])]; ev.target.value=''; if(!files.length) return;
   let last=null, n=0;
+  let unsaved=0;
   for(const f of files){
-    if(!/^audio\//.test(f.type) && !/\.(mp3|m4a|aac|wav|ogg|oga|flac|opus|webm)$/i.test(f.name)) continue;
-    const id='m'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name=f.name.replace(/\.[^.]+$/,'');
-    try{ await musTx('readwrite',st=>st.put({id,name,blob:f})); }catch(e){ toast('พื้นที่เก็บเต็ม เพิ่มเพลงไม่ได้'); break; }
-    TRACKS.push({id,name,blob:f}); last=id; n++;
+    if(!/^audio\//.test(f.type) && !/\.(mp3|m4a|mp4|aac|wav|ogg|oga|flac|opus|webm)$/i.test(f.name)) continue;
+    const id='m'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name=f.name.replace(/\.[^.]+$/,''), type=musMime(f);
+    let buf; try{ buf=await f.arrayBuffer(); }catch(e){ continue; }
+    const blob=new Blob([buf],{type});
+    // keep it in this browser if possible; if storing fails it still plays until the page is closed
+    try{ await musTx('readwrite',st=>st.put({id,name,type,buf})); }catch(e){ unsaved++; }
+    TRACKS.push({id,name,blob}); last=id; n++;
   }
-  if(last){ musLoadTrack(last,false); musRow(); toast(n>1?`เพิ่ม ${n} เพลงแล้ว กด ▶ เล่น`:'เพิ่มเพลงแล้ว กด ▶ เล่น'); }
+  if(last){ musLoadTrack(last,false); musRow(); toast(unsaved?'เพิ่มเพลงแล้ว (แต่บันทึกไว้ในเครื่องไม่ได้ ปิดหน้าแล้วจะหาย)':(n>1?`เพิ่ม ${n} เพลงแล้ว กด ▶ เล่น`:'เพิ่มเพลงแล้ว กด ▶ เล่น')); }
   else toast('ไฟล์นี้ไม่ใช่ไฟล์เสียง');
 });
 let musLvShown=-1;
