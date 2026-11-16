@@ -2830,7 +2830,9 @@ function spreadLimit(){
   if(S.wDress){ const f=flowFactor('dress'); tight=f>0 && f<=.3; if(S.wDress==='qipao') slack=32; }
   else if(S.wBottom){ const f=flowFactor('bottom'); tight=f>0 && f<=.3; if(S.wBottom==='slitskirt') slack=26; }
   if(!tight) return null;
-  const drop=skirtLen()-HIP_Y; if(drop<=slack) return null;   // too short to hold the legs
+  // the cloth grips from the widest part of the hips down to the hem, so even a short tight skirt holds the thighs;
+  // only one too short to reach past the hips leaves them free
+  const drop=skirtLen()-(HIP_Y-40); if(drop<=slack*1.15) return null;
   return Math.asin(slack/drop)*180/Math.PI;
 }
 function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}, lim=spreadLimit(); let hip=+J.hip||0; if(lim!=null && hip>lim) hip=lim; return {hip,knee:+J.knee||0,ank:+J.ank||0}; }
