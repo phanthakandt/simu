@@ -1681,6 +1681,26 @@ function pleatFolds(type,n){
   } else for(let k=1;k<=n;k++) B.push(-1+(2*k-1)/n);
   return B;
 }
+// where each fold line meets the hem. Normally the folds spread evenly with the flare; with a centre box pleat the box
+// hangs straight (same width as where it opens, w0·a) and the knife pleats on each side share all the extra width.
+function cenHem(B,on,w0,hw){
+  if(!on) return f=>150+f*hw;
+  const a=B[B.length/2], cw=a*w0;
+  return f=>{ const s=f<0?-1:1, af=Math.abs(f);
+    return af<=a ? 150+s*af/a*cw : 150+s*(cw+(af-a)/Math.max(.001,1-a)*Math.max(0,hw-cw)); };
+}
+// half-width of the centre box pleat on the skirt she is wearing (0 if it isn't a centre-box skirt):
+// the cloth motion (swish, flutter, legs apart, knees in) keeps that panel rigid and moves only the pleats beside it
+let CEN_W=0;
+function cenHalfW(){
+  if(!S.wBottom || S.wDress) return 0;
+  const it=cloth(S.wBottom); if(!it || !it.pleat) return 0;
+  const {type,n,f:F}=pleatCfg(); if(type!=='center') return 0;
+  const B=pleatFolds(type,n), a=B[B.length/2], hem=skirtLen();
+  if(S.wBottom==='yokepleat'){ const Y=Math.min(hem-10,216+yokeDepth()/CM_PER_UNIT); return a*(150-alineX(Y)-.6)+.05; }
+  const T=bottomWaist(), open=PLEAT_OPEN+(T-216); if(hem<=open) return 0;
+  return a*(150-pleatX(open,open,F))+.05;
+}
 function drawPleated(c,T=216){
   const {type,n,f:F}=pleatCfg();
   const e=edge(c), band=shade(c,-.12), dark=shade(c,-.18), hem=skirtLen();
@@ -1689,7 +1709,9 @@ function drawPleated(c,T=216){
   const pts=[]; for(let y=T+6;y<hem;y+=6) pts.push([pleatX(y,open,F),y]); pts.push([pleatX(hem,open,F),hem]);
   const hl=pts[pts.length-1][0], hw=150-hl;
   const B=pleatFolds(type,n), CEN=type==='center';       // n folds spread across the front, -1..1
-  const xw=f=>150+f*(150-xB-.8), xo=f=>150+f*(150-pleatX(open,open,F)), xh=f=>150+f*hw;
+  const xw=f=>150+f*(150-xB-.8), xo=f=>150+f*(150-pleatX(open,open,F));
+  // centre box pleat keeps its width all the way down: only the knife pleats beside it take up the flare
+  const xh=cenHem(B, CEN && hem>open, 150-pleatX(open,open,F), hw);
   // hem: each pleat type has its own edge
   const hemPts=[[300-hl,hem]];
   B.slice().reverse().forEach((f,i)=>{ const x=xh(f);
@@ -1740,7 +1762,7 @@ function drawYokePleat(c){
   const pts=[]; for(let y=222;y<hem;y+=4) pts.push([X(y),y]); pts.push([X(hem),hem]);
   const hl=pts[pts.length-1][0], hw=150-hl;
   const B=pleatFolds(type,n), CEN=type==='center';
-  const xs=f=>150+f*(150-xY-.6), xh=f=>150+f*hw;
+  const xs=f=>150+f*(150-xY-.6), xh=cenHem(B, CEN, 150-xY-.6, hw);
   const hemPts=[[300-hl,hem]];
   B.slice().reverse().forEach((f,i)=>{ const x=xh(f);
     if(type==='box') hemPts.push([x+2.2,hem+1.6],[x,hem-1.4],[x-2.2,hem+1.6]);
@@ -3025,16 +3047,21 @@ function deformPath(d,k,hx,kn,F,Rp){
   return d.replace(/(-?\d+(?:\.\d+)?)([ ,]+)(-?\d+(?:\.\d+)?)/g,(m,xs,sep,ys)=>{
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
+    // centre box pleat: slide everything in by the panel's half-width before the cloth moves, then back out,
+    // so the panel moves as one piece and only the pleats beside it open out
+    const cw=(SKKIND==='b' && CEN_W>0)?CEN_W:0, cIn=u=>Math.abs(u)<=cw?u:(u<0?-cw:cw);
+    const u0=cw?cIn(x-150):0; x-=u0;
     const spr=legSpread();
     if(spr>.01 && y>HIP_PY){ if(LEGON) [x,y]=spreadLeg(x,y,spr); else if(SKIRTON) x=spreadSkirt(x,y,spr); }
     if(KN10>.005 && y>HIP_PY){ if(LEGON) [x,y]=knockKnee(x,y,KN10); else if(SKIRTON) x=knockSkirt(x,y,KN10); }
     if(SKIRTON && FLOATFE>0 && (Math.abs(SKLIFT)>.03||skFlapA>.03)) [x,y]=skirtPhys(x,y);
+    x+=u0;
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
     if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && (spr>.01||KN10>.005) && parseFloat(ys)>HIP_PY) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
-    if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
+    if(F){ const u1=cw?cIn(x-150):0; const [fx,fy]=flowShift(x-u1,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
     return (x+hs).toFixed(2)+sep+RY(footY(y)).toFixed(2);
   });
 }
@@ -3252,7 +3279,7 @@ document.addEventListener('change',async ev=>{
   else if(added===0) toast('เปิดรูปนี้ไม่ได้');
 });
 setTimeout(bgLoad,0);
-function paintCanvas(){ $('canvas').innerHTML=render(); const im=$('canvas').querySelector('.bgimg'); if(im) im.setAttribute('href',BGIMG.data); applyPose(poseK,true); }
+function paintCanvas(){ CEN_W=cenHalfW(); $('canvas').innerHTML=render(); const im=$('canvas').querySelector('.bgimg'); if(im) im.setAttribute('href',BGIMG.data); applyPose(poseK,true); }
 let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipFrame=0, kneel=0, kneelWanted=false;
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
