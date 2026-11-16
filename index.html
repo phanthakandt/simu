@@ -268,6 +268,17 @@ body.fs .bubble{font-size:15px}
 body.covered{overflow:hidden}
 body:not(.covered) .cover{display:none}
 
+/* fantasy: floating */
+.stage .floatfx{transition:opacity .6s}
+.stage .fspark{transform-box:fill-box;transform-origin:center;animation:fspark 3.6s ease-in infinite}
+@keyframes fspark{0%{transform:translateY(0) scale(.4);opacity:0}15%{opacity:1}70%{opacity:.9}100%{transform:translateY(-120px) scale(1);opacity:0}}
+.stage .floater{transform-box:view-box;transform-origin:150px 566px}
+.stage .mcircle .dash{animation:mspin 6s linear infinite}
+@keyframes mspin{to{stroke-dashoffset:-90}}
+.stage .maura{animation:maura 3.2s ease-in-out infinite}
+@keyframes maura{0%,100%{opacity:.55}50%{opacity:.9}}
+@media (prefers-reduced-motion:reduce){.stage .fspark,.stage .mcircle,.stage .maura{animation:none}}
+
 /* per-level thought editor */
 .lvth{text-align:left}
 .lvth .lv-chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 10px}
@@ -371,6 +382,7 @@ body:not(.covered) .cover{display:none}
       <div class="testrow marks"><button class="mk" data-tset="0">0</button><button class="mk" data-tset="10">1</button><button class="mk" data-tset="20">2</button><button class="mk" data-tset="30">3</button><button class="mk" data-tset="40">4</button><button class="mk" data-tset="50">5</button><button class="mk" data-tset="60">6</button><button class="mk" data-tset="70">7</button><button class="mk" data-tset="80">8</button><button class="mk" data-tset="90">9</button><button class="mk" data-tset="100" aria-label="ระดับ 10" title="ระดับ 10">❤️</button></div>
       <div class="testrow"><label><input type="checkbox" id="testInstant"> เปลี่ยนทันที</label><span class="muted" id="testNow">ตอนนี้ 0%</span></div>
       <div class="testrow"><button class="btn small" id="btnLvTh">✏️ ตั้งค่าความคิดแต่ละระดับ</button><span class="muted" id="lvThNote"></span></div>
+      <div class="testrow" id="floatRow"></div>
       <div class="testrow" id="photoRow"></div>
       <input type="file" id="photoFile" accept="image/*" multiple hidden>
     </div>
@@ -2354,7 +2366,7 @@ function render(state=S){
   const prevBody=BODY; BODY=bodyCalc(state);
   const HT=(BODY.on?`translate(0 ${BODY.dy.toFixed(2)}) `:'')+HEAD_T;
   const skin=SKINS[S.skin], skE=shade(skin,-.16), h=HAIRCOLORS[S.hairColor][0];
-  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+'<g class="fig"><g class="breath"><g class="hopper"><g class="tremble">';
+  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+(live?FLOAT_BACK:'')+'<g class="fig"><g class="floater">'+(live?FLOAT_AURA:'')+'<g class="breath"><g class="hopper"><g class="tremble">';
   g+=`<g class="bow"><g class="head"><g transform="${HT}">${defaultHairBack(h)}</g></g></g>`;
   // lighting: soft key light from the upper left, form shadows that wrap around each limb
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
@@ -2468,7 +2480,7 @@ function render(state=S){
   g+=`<g class="flusterfx"><g class="fx a">${zig(108,158,-16)}${zig(101,168,-8)}</g><g class="fx b">${zig(192,158,16)}${zig(199,168,8)}</g><g class="fx c">${zig(102,258,-6)}${zig(98,268,-4)}</g><g class="fx d">${zig(198,258,6)}${zig(202,268,4)}</g></g>`;
   // racing heart over the centre of her left breast (viewer's right), riding along with the body
   g+=`<g data-pose="g"><g data-tr="161 187" transform="translate(161 187)"><g class="heartbeat" style="opacity:var(--s-heart,0)"><path d="M-6.0 -2.0 C-6.0 -5.4 -1.6 -6.6 0.0 -3.4 C1.6 -6.6 6.0 -5.4 6.0 -2.0 C6.0 2.0 0.0 5.6 0.0 7.0 C0.0 5.6 -6.0 2.0 -6.0 -2.0 Z" fill="#ff5d7e" stroke="#fff" stroke-width="1.2"/><path d="M-3.4 -2.4 Q-2.6 -4.0 -1.0 -3.6" stroke="#fff" stroke-width="1" fill="none" opacity=".8"/></g></g></g>`;
-  g+=`</g></g></g></g></g>`;
+  g+=`</g></g></g></g></g></g>`+(live?FLOAT_FRONT:'');
   // flat look: no light gradient, no edge/form shadows (outlines and colours only)
   if(!SHADING){
     g=g.replace(/<path [^>]*?filter="url\(#soft2?\)"\/>/g,'')
@@ -2932,6 +2944,7 @@ function paintCanvas(){ $('canvas').innerHTML=render(); const im=$('canvas').que
 let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipFrame=0, kneel=0, kneelWanted=false;
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
+let floatK=0;
 let kneelE=0;
 (function hipLoop(t){
   requestAnimationFrame(hipLoop);
@@ -2960,14 +2973,26 @@ let kneelE=0;
     flowHem = (typeof skirtLen==='function') ? skirtLen() : 300;
   }
   // kneeling: collapse when embarrassment passes 72%, stand back up below 62%
-  if(!kneelWanted && EMB.v>=47 && !st.classList.contains('paused')){ kneelWanted=true; setTimeout(()=>think('event',{text:'ไม่ไหวแล้ว... ขาอ่อนจนทรุดลงไปคุกเข่า',force:true}),400); }
-  else if(kneelWanted && EMB.v<43){ kneelWanted=false; setTimeout(()=>think('event',{text:'ค่อยๆ ลุกขึ้นยืน... ใจเย็นลงหน่อยแล้ว',force:true}),400); }
+  if(!kneelWanted && EMB.v>=47 && !S.float && !st.classList.contains('paused')){ kneelWanted=true; setTimeout(()=>think('event',{text:'ไม่ไหวแล้ว... ขาอ่อนจนทรุดลงไปคุกเข่า',force:true}),400); }
+  else if(kneelWanted && (EMB.v<43 || S.float)){ kneelWanted=false; setTimeout(()=>think('event',{text:'ค่อยๆ ลุกขึ้นยืน... ใจเย็นลงหน่อยแล้ว',force:true}),400); }
   kneel += ((kneelWanted?1:0)-kneel)*.05;
   if(Math.abs(kneel)<.001) kneel=0;
   const tr=$('canvas').querySelector('.tremble'), kr=$('canvas').querySelector('.kneelrect');
   const e=kneel*kneel*(3-2*kneel); // ease in-out
   if(tr) tr.style.transform=`translateY(${(poseK*2.4*(1-e)+e*(KNEEL_DROP+(BODY.on?KNEE_Y-RY(KNEE_Y):0))-heelLift()*(1-e)).toFixed(2)}px)`;
   kneelE=e;
+  // floating: rise smoothly to the chosen height and bob gently there
+  floatK += ((S.float?1:0)-floatK)*.035; if(Math.abs(floatK)<.001) floatK=0;
+  const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
+  if(fl){
+    if(!fe) fl.style.transform='';
+    else {
+      // shrink her a touch (about the floor) when the lift would push her head out of the picture
+      const rise=fe*(+S.floatH||60)-Math.sin(t/950)*5*fe, top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-8-rise)/Math.max(1,566-top));
+      fl.style.transform=`translateY(${(-rise).toFixed(2)}px) scale(${k.toFixed(4)})`;
+    }
+  }
+  $('canvas').querySelectorAll('.floatfx').forEach(el=>el.style.opacity=fe.toFixed(3));
   const sh=$('canvas').querySelector('.shoesg'); if(sh) sh.style.opacity=Math.max(0,1-e*2.2).toFixed(2);
   applyPose(poseK);
 })(0);
@@ -3501,6 +3526,39 @@ document.addEventListener('click',ev=>{
   if(b.dataset.lvclose){ closeModal(); lvThNote(); }
 });
 setTimeout(lvThNote,0);
+/* ---------- fantasy mode: she floats ----------
+   Separate from the 0–10 shyness scale: a toggle of its own. While floating she can't sit down,
+   a magic circle glows on the floor, sparkles drift up, and a soft aura follows her. */
+const FLOAT_BACK=`<g class="floatfx" style="opacity:0">
+  <ellipse cx="150" cy="572" rx="96" ry="15" fill="#c8a8ff" opacity=".22"/>
+  <g class="mcircle"><ellipse cx="150" cy="572" rx="78" ry="12" fill="none" stroke="#b48cff" stroke-width="1.6" opacity=".7"/>
+  <ellipse class="dash" cx="150" cy="572" rx="64" ry="9.6" fill="none" stroke="#e7d8ff" stroke-width="1.1" stroke-dasharray="5 4" opacity=".9"/></g>
+  ${[[92,520,0],[208,500,.6],[120,450,1.3],[186,420,2],[104,360,2.6],[196,330,.9],[136,300,1.8],[170,250,3]].map(([x,y,d],i)=>`<path class="fspark" style="animation-delay:-${d}s" d="M${x} ${y-4} L${x+1.2} ${y-1.2} L${x+4} ${y} L${x+1.2} ${y+1.2} L${x} ${y+4} L${x-1.2} ${y+1.2} L${x-4} ${y} L${x-1.2} ${y-1.2} Z" fill="${i%2?'#fff6c9':'#e9dcff'}"/>`).join('')}
+</g>`;
+const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura"><stop offset="0" stop-color="#e8dcff" stop-opacity=".75"/><stop offset=".6" stop-color="#d6c2ff" stop-opacity=".25"/><stop offset="1" stop-color="#d6c2ff" stop-opacity="0"/></radialGradient>
+  <ellipse class="maura" cx="150" cy="330" rx="120" ry="250" fill="url(#faura)"/></g>`;
+const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
+const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
+function floatRow(){
+  const r=$('floatRow'); if(!r) return;
+  const h=+S.floatH||60;
+  r.style.flexWrap='wrap';
+  r.innerHTML=`<button class="btn small ${S.float?'primary':''}" data-float="1">${S.float?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ โหมดแฟนตาซี: ลอยตัว'}</button>`
+    +(S.float?`<span class="len-row" style="flex-basis:100%;margin:0"><span>ความสูง</span><input type="range" class="slider" min="20" max="120" step="1" value="${h}" data-floath="1" aria-label="ความสูงที่ลอย"></span>`:'');
+  if(typeof enhanceInputs==='function') enhanceInputs(r);
+}
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-float]'); if(!b) return;
+  S.float=!S.float; persist(); floatRow();
+  const L=embLevel(EMB.v);
+  think('event',{text:S.float?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
+});
+document.addEventListener('input',ev=>{
+  const r=ev.target.closest('[data-floath]'); if(!r) return;
+  const v=parseFloat(r.value); if(isNaN(v)) return; S.floatH=Math.max(20,Math.min(120,v)); persist();
+});
+setTimeout(floatRow,0);
+
 /* ---------- flustered speech: the shyer she gets, the less her thoughts hold together ----------
    Low levels: whole sentences, still not used to this body. Mid: broken clauses, stutters, trailing off.
    High: no sentences at all — a word, a gasp, an "อ๊ะ!". Level 10 keeps its own long sigh. */
@@ -3556,6 +3614,7 @@ function think(kind, opt={}){
     // the more flustered, the more often she can't form a thought at all
     const L0=embLevel(EMB.v);
     if(kind==='idle' && L0>=1 && L0<=9 && Math.random()<Math.min(.85,.15+L0*.08)){ src=STAMMER[L0]; opt={...opt,raw:true}; }
+    else if(kind==='idle' && S.float && Math.random()<.4) src=FLOAT_TH;
     const pool=src.filter(t=>t!==lastThought);
     if(!pool.length) return;
     text=pick(pool);
