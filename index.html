@@ -586,19 +586,26 @@ function bodyStatic(root,st){
 const PROP_TYPES={
   pole:{name:'ไม้พลอง',ic:'🪵',hMin:40,hMax:520,hDef:330,cols:[['#a8743f','ไม้'],['#6b4428','ไม้เข้ม'],['#e2c48f','ไม้อ่อน'],['#2b2b33','ดำ'],['#b9bec7','เงิน'],['#c23d5a','แดง']]}
 };
-const FLOOR_Y=566;
+const FLOOR_Y=566, PROP_LIFT_MAX=220;
+/* dancing props: they bob with the shyness level (1–9; still at 0 and 10), always a little AHEAD of her —
+   up first, down first. When she is floating and bobbing they lead her own motion; otherwise they keep the
+   same tempo on their own. */
+let propPh=0, propLastT=0, propDanceE=0;
+function propDancePeriod(lv){ return .70*Math.pow(Math.max(1,lv),-.33); }   // matches her bob tempo per level
 function drawProps(){
   const ps=Array.isArray(S.props)?S.props:[];
-  return ps.map(p=>{
+  return ps.map((p,i)=>{
     const T=PROP_TYPES[p.type]; if(!T) return '';
     const x=Math.max(10,Math.min(290,+p.x||60)), h=Math.max(T.hMin,Math.min(T.hMax,+p.h||T.hDef)), c=p.c||T.cols[0][0], e=edge(c);
+    const lift=Math.max(0,Math.min(PROP_LIFT_MAX,+p.lift||0));
     if(p.type==='pole'){
-      const w=7, top=FLOOR_Y-h, hi=shade(c,.28), dk=shade(c,-.22);
-      return `<g class="prop"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="11" ry="2.6" fill="#2d2430" opacity=".14"/>
+      const w=7, bottom=FLOOR_Y-lift, top=bottom-h, hi=shade(c,.28), dk=shade(c,-.22);
+      const shO=(.14*Math.max(.35,1-lift/160)).toFixed(3), shR=(11*Math.max(.6,1-lift/300)).toFixed(1);
+      return `<g class="prop" data-pi="${i}"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="${shR}" ry="2.6" fill="#2d2430" opacity="${shO}"/><g class="propmv">
         <rect x="${x-w/2}" y="${top}" width="${w}" height="${h}" rx="3.5" fill="${c}" stroke="${e}" stroke-width=".9"/>
         <rect x="${x-w/2+1.2}" y="${top+3}" width="1.6" height="${Math.max(0,h-6)}" rx=".8" fill="${hi}" opacity=".7"/>
         <rect x="${x+w/2-2}" y="${top+3}" width="1.2" height="${Math.max(0,h-6)}" rx=".6" fill="${dk}" opacity=".5"/>
-        <rect x="${x-w/2}" y="${top+10}" width="${w}" height="2" fill="${dk}" opacity=".35"/><rect x="${x-w/2}" y="${FLOOR_Y-12}" width="${w}" height="2" fill="${dk}" opacity=".35"/></g>`;
+        <rect x="${x-w/2}" y="${top+10}" width="${w}" height="2" fill="${dk}" opacity=".35"/><rect x="${x-w/2}" y="${bottom-12}" width="${w}" height="2" fill="${dk}" opacity=".35"/></g></g>`;
     }
     return '';
   }).join('');
@@ -611,7 +618,9 @@ function propsControls(){
   ps.forEach((p,i)=>{ const T=PROP_TYPES[p.type]; if(!T) return;
     const x=Math.round(+p.x||60), ht=Math.round(+p.h||T.hDef);
     h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>อยู่หลังตัวละครเสมอ</small>
-      <span class="mini-label">ความสูงจากพื้น</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความสูงจากพื้น"></span>
+      <span class="mini-label">ความยาวไม้</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความยาวไม้"></span>
+      <span class="mini-label">ลอยจากพื้น</span><span class="len-row"><input type="range" class="slider" min="0" max="${PROP_LIFT_MAX}" step="1" value="${Math.round(+p.lift||0)}" data-prop="${i}" data-pk="lift" aria-label="ลอยจากพื้น"></span>
+      <span class="pat-row" style="margin-top:6px"><button class="pat ${p.dance?'on':''}" data-propdance="${i}">💃 โหมดเต้นระบำ${p.dance?' · เปิด':''}</button></span>${p.dance?`<small style="display:block;color:var(--muted)">ขยับขึ้นลงนำหน้าตัวละครนิดหน่อย ความเร็วตามระดับความเขิน (นิ่งที่ 0 และ 10)</small>`:''}
       <span class="mini-label">ตำแหน่ง <small>(ซ้าย ← → ขวา)</small></span><span class="len-row"><input type="range" class="slider" min="10" max="290" step="1" value="${x}" data-prop="${i}" data-pk="x" aria-label="ตำแหน่งซ้ายขวา"></span>
       <span class="mini-label">สี</span><span class="swatches mini">${T.cols.map(([c,n])=>`<button class="sw ${c===(p.c||T.cols[0][0])?'on':''}" style="background:${c}" data-propc="${i}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</span></span>
       <button class="btn small" data-propdel="${i}">ลบ</button></div>`; });
@@ -619,8 +628,9 @@ function propsControls(){
   return h;
 }
 document.addEventListener('click',ev=>{
-  const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]');
-  if(!a&&!d&&!c) return;
+  const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]');
+  if(!a&&!d&&!c&&!dn) return;
+  if(dn){ const p=(S.props||[])[+dn.dataset.propdance]; if(p){ p.dance=!p.dance; } update(); return; }
   S.props=Array.isArray(S.props)?S.props:[];
   if(a){ const T=PROP_TYPES[a.dataset.propadd]; const n=S.props.length; S.props.push({type:a.dataset.propadd, x:n%2?240:60, h:T.hDef, c:T.cols[0][0]}); }
   if(d) S.props.splice(+d.dataset.propdel,1);
@@ -3170,7 +3180,7 @@ const KNEEL_DROP=159;
 let floatK=0, floatLvShown=0, floatSide=1, pantE=0, pantShown=false;
 const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show the shoes
 // floating altitude above the base height: target, current position, speed (spring-damper)
-let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1;
+let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0;
 let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
 const SK_K=110, SK_D=5, SK_IN=.25;
 const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=24, UP_MAX=24, DOWN_MAX=12;
@@ -3210,6 +3220,18 @@ let kneelE=0;
   const e=kneel*kneel*(3-2*kneel); // ease in-out
   if(tr) tr.style.transform=`translateY(${(poseK*2.4*(1-e)+e*(KNEEL_DROP+(BODY.on?KNEE_Y-RY(KNEE_Y):0))-heelLift()*(1-e)).toFixed(2)}px)`;
   kneelE=e;
+  { // dancing props
+    const dtp=Math.min(.05,(t-(propLastT||t))/1000); propLastT=t;
+    const lv=Math.max(0,Math.min(10,embLevel(EMB.v))), on=lv>0 && lv<10 && !st.classList.contains('paused');
+    propDanceE+=((on?1:0)-propDanceE)*.08; if(propDanceE<.002 && !on) propDanceE=0;
+    if(on) propPh+=dtp*2*Math.PI/propDancePeriod(lv);
+    const leadDy = (typeof autoBob==='function' && autoBob()) ? pAlt : 11*Math.sin(propPh);   // + = up
+    $('canvas').querySelectorAll('.prop').forEach(g=>{
+      const p=(S.props||[])[+g.dataset.pi], mv=g.firstElementChild&&g.querySelector('.propmv'); if(!mv) return;
+      const dy=(p&&p.dance)?leadDy*propDanceE:0;
+      mv.setAttribute('transform',dy?`translate(0 ${(-dy).toFixed(2)})`:'');
+    });
+  }
   // shyness 10 (standing or floating): worn out — the head heaves up and down with each panting breath
   { const want=atMax()?1:0; pantE+=(want-pantE)*.05; if(Math.abs(pantE-want)<.002) pantE=want;
     if(pantE>0 || pantShown){ const ph=(t/1000)*1.0*2*Math.PI, b=Math.sin(ph), v=pantE*(b>0?-2.6*b:-1.1*b);   // quick lift on the in-breath, softer drop
@@ -3238,6 +3260,8 @@ let kneelE=0;
       else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==altSpeed()) floatRow(); }
       const K=bob?(3+altSpeed()*3.2)*9:ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;   // ×9 stiffness = 3× faster at every level
       altV += ((floatAltT-altPos)*K - altV*D)*dt; altPos += altV*dt;
+      // dancing props chase the same targets on a quicker spring, so they turn at each end a beat before she does
+      { const Kp=K*2.6, Dp=2*Math.sqrt(Kp)*.5; pAltV += ((floatAltT-pAlt)*Kp - pAltV*Dp)*dt; pAlt += pAltV*dt; }
       if(bob && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
         altDir=-altDir; floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
       }
