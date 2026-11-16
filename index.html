@@ -2831,10 +2831,13 @@ function skirtPhys(x,y){
   const top=228, hem=Math.max(top+20,skirtLen()+6);
   let w=Math.max(0,Math.min(1,(y-top)/(hem-top))); if(!w) return [x,y];
   w=Math.pow(w,1.35);
-  const L=SKLIFT*FLOATFE, sg=x<150?-1:1, side=Math.min(1,Math.abs(x-150)/40);
+  // the hem may lift only as far as the skirt's own length allows: a short skirt never rides up past the hips
+  // (it flares out a little instead), a long one has room to lift and flutter
+  const room=Math.max(0,Math.min(10,(hem-300)*.1)), soft=Math.max(.2,Math.min(1,(hem-290)/70));
+  const L0=SKLIFT*FLOATFE, L=L0>0?Math.min(L0,room):L0, sg=x<150?-1:1, side=Math.min(1,Math.abs(x-150)/40);
   y -= L*w;
-  x += sg*side*w*(L>0 ? L*.8 : L*.18);
-  y += Math.sin(skFlapPh + x*.17)*skFlapA*FLOATFE*w;
+  x += sg*side*w*(L0>0 ? Math.min(L0,6+room)*.8 : L0*.18);
+  y += Math.max(-room,Math.sin(skFlapPh + x*.17)*skFlapA*FLOATFE*soft)*w;
   return [x,y];
 }
 function deformPath(d,k,hx,kn,F,Rp){
