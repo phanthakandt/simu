@@ -132,7 +132,7 @@ h1 span{color:var(--accent)}
 .stage .sw.b{animation-delay:-.5s}.stage .sw.c{animation-delay:-1s}.stage .sw.d{animation-delay:-1.3s}
 @keyframes swdrip{0%{transform:translateY(-2px);opacity:.0}15%{opacity:1}80%{opacity:1}100%{transform:translateY(7px);opacity:0}}
 @media (prefers-reduced-motion:reduce){.stage .sw{animation:none}}
-.stage .bow{transform-box:view-box;transform-origin:150px 146px;transform:translateY(calc(var(--s-bow,0) * 7px + var(--pant,0) * 1px)) scaleY(calc(1 - var(--s-bow,0) * .07))}
+.stage .bow{transform-box:view-box;transform-origin:150px 146px;transform:translateY(calc(var(--s-bow,0) * 7px + var(--pant,0) * 1px + var(--hlag,0) * 1px)) scaleY(calc(1 - var(--s-bow,0) * .07))}
 .stage.trembling .tremble{animation:tremble 1.6s linear infinite}
 @keyframes tremble{0%,30%,100%{transform:translate(0,0)}4%{transform:translate(.35px,0)}8%{transform:translate(-.3px,0)}12%{transform:translate(.25px,0)}16%{transform:translate(-.2px,0)}20%{transform:translate(0,0)}}
 @media (prefers-reduced-motion:reduce){.stage.trembling .tremble{animation:none}}
@@ -3183,6 +3183,8 @@ const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show t
 let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0;
 let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
 const SK_K=110, SK_D=5, SK_IN=.25;
+let hLag=0, hAbs=0, hAbsV=0, hLagShown=0;
+const HL_K=1600, HL_D=36, HL_MAX=5;   // ~6 Hz neck spring: the head follows a few hundredths of a second late
 const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=24, UP_MAX=24, DOWN_MAX=12;
 let kneelE=0;
 (function hipLoop(t){
@@ -3244,6 +3246,7 @@ let kneelE=0;
   floatK += ((FL>0?1:0)-floatK)*.035; if(Math.abs(floatK-(FL>0?1:0))<.001) floatK=FL>0?1:0;
   const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
   FLOATFE=fe;
+  { const v=hLag*fe; if(Math.abs(v-hLagShown)>.02 || (v===0 && hLagShown!==0)){ hLagShown=v; st.style.setProperty('--hlag',v.toFixed(2)); } }
   { const want=(fe>.01 && altSpeed()>=8)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe); }
   if(st.classList.contains('floating')!==(fe>.01)) st.classList.toggle('floating',fe>.01);
   if(fl){
@@ -3270,6 +3273,14 @@ let kneelE=0;
         // stops (or drops) it flips up and flutters before settling
         const acc=(altV-v0)/dt;   // body acceleration (units/s²), up is positive
         skLV += (-SK_K*SKLIFT - SK_D*skLV - acc*SK_IN)*dt; SKLIFT += skLV*dt;
+        // the head rides on the neck like a stiff spring: it trails the body a touch (dips as she shoots up,
+        // keeps rising a moment as she stops) and settles — lagging behind the body, never leading
+        { // stiff spring: integrate in small steps, chasing the body's motion through this frame
+          const n=6, h=dt/n, p0=altPos-altV*dt;
+          for(let j=1;j<=n;j++){ const bp=p0+altV*h*j; hAbsV += ((bp-hAbs)*HL_K - (hAbsV-altV)*HL_D)*h; hAbs += hAbsV*h; } }
+        const rel=hAbs-altPos;                                   // + = head above where the body puts it
+        if(rel>HL_MAX){ hAbs=altPos+HL_MAX; if(hAbsV>altV) hAbsV=altV; } else if(rel<-HL_MAX){ hAbs=altPos-HL_MAX; if(hAbsV<altV) hAbsV=altV; }
+        hLag=-(hAbs-altPos);                                     // svg y: + = down
         // stop at the ends instead of pinning there with speed still building (that made the hem stall, then snap)
         if(SKLIFT<-24){ SKLIFT=-24; if(skLV<0) skLV=0; } else if(SKLIFT>24){ SKLIFT=24; if(skLV>0) skLV=0; }
         skFlapPh += dt*(9+Math.min(14,Math.abs(skLV)*.2));
