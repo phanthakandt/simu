@@ -3118,7 +3118,7 @@ let kneelE=0;
   kneelE=e;
   // shyness 10 (standing or floating): worn out — the head heaves up and down with each panting breath
   { const want=atMax()?1:0; pantE+=(want-pantE)*.05; if(Math.abs(pantE-want)<.002) pantE=want;
-    if(pantE>0 || pantShown){ const ph=(t/1000)*1.7*2*Math.PI, b=Math.sin(ph), v=pantE*(b>0?-2.6*b:-1.1*b);   // quick lift on the in-breath, softer drop
+    if(pantE>0 || pantShown){ const ph=(t/1000)*1.0*2*Math.PI, b=Math.sin(ph), v=pantE*(b>0?-2.6*b:-1.1*b);   // quick lift on the in-breath, softer drop
       st.style.setProperty('--pant',v.toFixed(2)); pantShown=pantE>0; } }
   // floating: rise smoothly to the chosen height and bob gently there
   // floating (fantasy, levels 1–5): rise to the level's height, hang from the middle of the body and lean
