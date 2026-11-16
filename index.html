@@ -2876,7 +2876,7 @@ function flutterTop(){
 // at the hip; skirts, dresses and coat hems are pushed out the same amount so the legs stay inside.
 const SPREAD_MAX=8, HIP_PY=296;
 const legSpread=()=>Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))*FLOATFE*(1-KN10);
-// shyness 10 while floating: knees squeeze together and the shins splay out (an embarrassed knock-kneed pose).
+// shyness 8 and up while floating: knees squeeze together and the shins splay out (an embarrassed knock-kneed pose).
 // KN10 eases 0 → 1; thighs turn in at the hip, then each shin turns out from its own knee.
 let KN10=0, kn10Applied=0;
 const KN_IN=4.0, KN_OUT=11, KNEE_PY=400;   // knees just meet (no crossing over), shins splay
@@ -3128,7 +3128,7 @@ let kneelE=0;
   floatK += ((FL>0?1:0)-floatK)*.035; if(Math.abs(floatK-(FL>0?1:0))<.001) floatK=FL>0?1:0;
   const fe=floatK*floatK*(3-2*floatK), fl=$('canvas').querySelector('.floater');
   FLOATFE=fe;
-  { const want=(fe>.01 && altSpeed()>=10)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe); }
+  { const want=(fe>.01 && altSpeed()>=8)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe); }
   if(st.classList.contains('floating')!==(fe>.01)) st.classList.toggle('floating',fe>.01);
   if(fl){
     if(fe<.001) fl.removeAttribute('transform');
@@ -3738,7 +3738,7 @@ function altHTML(){
   const up=Math.min(UP_MAX,+S.floatUp||12), dn=Math.min(DOWN_MAX,+S.floatDown||8), sp=altSpeed();
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <span class="mini-label" style="margin-top:0">ความเขินตอนลอย · ระดับ <b class="altlv">${sp}</b> <small>(ปรับที่แถบความเขินด้านบน)</small></span>
-    <span class="note altword" style="display:block;margin:2px 0 6px">${sp>=10?'เขินจนตัวค้าง ลอยนิ่ง หุบเข่าแน่น ปลายเท้าแบะออก':sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
+    <span class="note altword" style="display:block;margin:2px 0 6px">${sp>=10?'เขินจนตัวค้าง ลอยนิ่ง หุบเข่าแน่น ปลายเท้าแบะออก':sp>=8?'ลอยขึ้นลงเร็ว หุบเข่าแน่น ปลายเท้าแบะออก':sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
     <span class="mini-label">อ้าขา <small>(0–${SPREAD_MAX}°)</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="0" max="${SPREAD_MAX}" step="1" value="${Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))}" data-legspread="1" aria-label="อ้าขา (องศา)"></span>
     <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="2" max="${UP_MAX}" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
     <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="2" max="${DOWN_MAX}" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
