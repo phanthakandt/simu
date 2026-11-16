@@ -3180,7 +3180,8 @@ const KNEEL_DROP=159;
 let floatK=0, floatLvShown=0, floatSide=1, pantE=0, pantShown=false;
 const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show the shoes
 // floating altitude above the base height: target, current position, speed (spring-damper)
-let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0;
+let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0, ldPos=0, ldV=0, lagT=.12;
+const ldHist=[];
 let SKLIFT=0, skLV=0, skFlapPh=0, skFlapA=0, skLiftApplied=0;
 const SK_K=110, SK_D=5, SK_IN=.25;
 let hLag=0, hAbs=0, hAbsV=0, hLagShown=0;
@@ -3223,14 +3224,10 @@ let kneelE=0;
   if(tr) tr.style.transform=`translateY(${(poseK*2.4*(1-e)+e*(KNEEL_DROP+(BODY.on?KNEE_Y-RY(KNEE_Y):0))-heelLift()*(1-e)).toFixed(2)}px)`;
   kneelE=e;
   { // dancing props
-    const dtp=Math.min(.05,(t-(propLastT||t))/1000); propLastT=t;
-    const lv=Math.max(0,Math.min(10,embLevel(EMB.v))), on=lv>0 && lv<10 && !st.classList.contains('paused');
-    propDanceE+=((on?1:0)-propDanceE)*.08; if(propDanceE<.002 && !on) propDanceE=0;
-    if(on) propPh+=dtp*2*Math.PI/propDancePeriod(lv);
-    const leadDy = (typeof autoBob==='function' && autoBob()) ? pAlt : 11*Math.sin(propPh);   // + = up
+    const leadDy = pAlt;   // the scene's leader rhythm (+ = up); it starts, turns and settles before she does
     $('canvas').querySelectorAll('.prop').forEach(g=>{
       const p=(S.props||[])[+g.dataset.pi], mv=g.firstElementChild&&g.querySelector('.propmv'); if(!mv) return;
-      const dy=(p&&p.dance)?leadDy*propDanceE:0;
+      const dy=(p&&p.dance)?leadDy:0;
       mv.setAttribute('transform',dy?`translate(0 ${(-dy).toFixed(2)})`:'');
     });
   }
@@ -3249,43 +3246,49 @@ let kneelE=0;
   { const v=hLag*fe; if(Math.abs(v-hLagShown)>.02 || (v===0 && hLagShown!==0)){ hLagShown=v; st.style.setProperty('--hlag',v.toFixed(2)); } }
   { const want=(fe>.01 && altSpeed()>=8)?1:0; KN10+=(want-KN10)*.06; if(Math.abs(KN10-want)<.002) KN10=want; KN10=Math.min(KN10,fe); }
   if(st.classList.contains('floating')!==(fe>.01)) st.classList.toggle('floating',fe>.01);
+  { /* ---- one rhythm for the whole scene ----
+       A "leader" spring bobs between the up/down ends at the tempo of the shyness level (1–9; it eases to a
+       stop at 0 and 10). Dancing props ride the leader itself; she replays the same motion a moment later,
+       so props always start first, turn first and settle first. */
+    const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
+    const lvB=altSpeed(), lead=lvB>0 && lvB<10 && !st.classList.contains('paused');
+    if(lead && !bobWas){ altDir=1; floatAltT=Math.min(UP_MAX,+S.floatUp||12); }   // starts: up first
+    if(!lead && bobWas) floatAltT=0;                                               // 0 or 10: ease back to rest
+    if(lead!==bobWas){ bobWas=lead; if(document.querySelector('#floatRow .altlv')) floatRow(); }
+    else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==lvB) floatRow(); }
+    const K=lead?(3+lvB*3.2)*9:ALT_K, D=lead?2*Math.sqrt(K)*.42:ALT_D;               // ×9 stiffness = 3× tempo
+    ldV += ((floatAltT-ldPos)*K - ldV*D)*dt; ldPos += ldV*dt;
+    if(lead && (ldPos-floatAltT)*altDir>=-1){ altDir=-altDir; floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8); }
+    pAlt=ldPos;
+    // how far behind she follows: a fixed share of the beat (clear at slow tempos, never so long it looks off-beat)
+    if(lead){ const want=Math.max(.06,Math.min(.14,.22*propDancePeriod(lvB))); lagT+=(want-lagT)*.05; }
+    ldHist.push(t,ldPos); while(ldHist.length>4 && ldHist[0]<t-600){ ldHist.shift(); ldHist.shift(); }
+    const tt=t-lagT*1000; let val=ldHist[1];
+    for(let k=ldHist.length-2;k>=0;k-=2){ if(ldHist[k]<=tt){ const t0=ldHist[k], v0=ldHist[k+1], t1=ldHist[k+2], v1=ldHist[k+3]; val=(t1==null||t1===t0)?v0:v0+(v1-v0)*(tt-t0)/(t1-t0); break; } }
+    const v0=altV;
+    if(dt>0){ altV=(val-altPos)/dt; } altPos=val;
+    if(dt>0){
+      // the cloth is a looser spring hanging off the body: when she shoots up it trails down, when she
+      // stops (or drops) it flips up and flutters before settling
+      const acc=(altV-v0)/dt;   // body acceleration (units/s²), up is positive
+      skLV += (-SK_K*SKLIFT - SK_D*skLV - acc*SK_IN)*dt; SKLIFT += skLV*dt;
+      // the head rides on the neck like a stiff spring: it trails the body a touch (dips as she shoots up,
+      // keeps rising a moment as she stops) and settles — lagging behind the body, never leading
+      { // stiff spring: integrate in small steps, chasing the body's motion through this frame
+        const n=6, h=dt/n, p0=altPos-altV*dt;
+        for(let j=1;j<=n;j++){ const bp=p0+altV*h*j; hAbsV += ((bp-hAbs)*HL_K - (hAbsV-altV)*HL_D)*h; hAbs += hAbsV*h; } }
+      const rel=hAbs-altPos;                         // + = head above where the body puts it
+      if(rel>HL_MAX){ hAbs=altPos+HL_MAX; if(hAbsV>altV) hAbsV=altV; } else if(rel<-HL_MAX){ hAbs=altPos-HL_MAX; if(hAbsV<altV) hAbsV=altV; }
+      hLag=-(hAbs-altPos);                         // svg y: + = down
+      // stop at the ends instead of pinning there with speed still building (that made the hem stall, then snap)
+      if(SKLIFT<-24){ SKLIFT=-24; if(skLV<0) skLV=0; } else if(SKLIFT>24){ SKLIFT=24; if(skLV>0) skLV=0; }
+      skFlapPh += dt*(9+Math.min(14,Math.abs(skLV)*.2));
+      skFlapA += ((Math.min(3.4,Math.abs(skLV)*.06)) - skFlapA)*Math.min(1,dt*4);
+    }
+  }
   if(fl){
     if(fe<.001) fl.removeAttribute('transform');
     else {
-      // same height and lean at every level: 1–5 only sets how shy she is while floating
-      // altitude follows its target on a soft spring: eases off, overshoots a little, settles
-      const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
-      const v0=altV;
-      const bob=autoBob();
-      if(bob && !bobWas){ altDir=1; floatAltT=Math.min(UP_MAX,+S.floatUp||12); }   // starts bobbing: head up first
-      if(!bob && bobWas) floatAltT=0;                            // calmed down to 0: settle back to hovering
-      if(bob!==bobWas){ bobWas=bob; const lv=document.querySelector('#floatRow .altlv'); if(lv) floatRow(); }
-      else { const lv=document.querySelector('#floatRow .altlv'); if(lv && +lv.textContent!==altSpeed()) floatRow(); }
-      const K=bob?(3+altSpeed()*3.2)*9:ALT_K, D=bob?2*Math.sqrt(K)*.42:ALT_D;   // ×9 stiffness = 3× faster at every level
-      altV += ((floatAltT-altPos)*K - altV*D)*dt; altPos += altV*dt;
-      // dancing props chase the same targets on a quicker spring, so they turn at each end a beat before she does
-      { const Kp=K*2.6, Dp=2*Math.sqrt(Kp)*.5; pAltV += ((floatAltT-pAlt)*Kp - pAltV*Dp)*dt; pAlt += pAltV*dt; }
-      if(bob && (altPos-floatAltT)*altDir>=-1){   // reached this end: head for the other
-        altDir=-altDir; floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
-      }
-      if(dt>0){
-        // the cloth is a looser spring hanging off the body: when she shoots up it trails down, when she
-        // stops (or drops) it flips up and flutters before settling
-        const acc=(altV-v0)/dt;   // body acceleration (units/s²), up is positive
-        skLV += (-SK_K*SKLIFT - SK_D*skLV - acc*SK_IN)*dt; SKLIFT += skLV*dt;
-        // the head rides on the neck like a stiff spring: it trails the body a touch (dips as she shoots up,
-        // keeps rising a moment as she stops) and settles — lagging behind the body, never leading
-        { // stiff spring: integrate in small steps, chasing the body's motion through this frame
-          const n=6, h=dt/n, p0=altPos-altV*dt;
-          for(let j=1;j<=n;j++){ const bp=p0+altV*h*j; hAbsV += ((bp-hAbs)*HL_K - (hAbsV-altV)*HL_D)*h; hAbs += hAbsV*h; } }
-        const rel=hAbs-altPos;                                   // + = head above where the body puts it
-        if(rel>HL_MAX){ hAbs=altPos+HL_MAX; if(hAbsV>altV) hAbsV=altV; } else if(rel<-HL_MAX){ hAbs=altPos-HL_MAX; if(hAbsV<altV) hAbsV=altV; }
-        hLag=-(hAbs-altPos);                                     // svg y: + = down
-        // stop at the ends instead of pinning there with speed still building (that made the hem stall, then snap)
-        if(SKLIFT<-24){ SKLIFT=-24; if(skLV<0) skLV=0; } else if(SKLIFT>24){ SKLIFT=24; if(skLV>0) skLV=0; }
-        skFlapPh += dt*(9+Math.min(14,Math.abs(skLV)*.2));
-        skFlapA += ((Math.min(3.4,Math.abs(skLV)*.06)) - skFlapA)*Math.min(1,dt*4);
-      }
       const rise=fe*(FLOAT_RISE+altPos)+Math.sin(t/1000)*4*fe;
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
       const top=50+BODY.dy*BODY.fit, k=Math.min(1,(566-6-rise)/Math.max(1,566-top));   // top of the hair is about y 52
@@ -3857,7 +3860,7 @@ let bobWas=false;
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-altstep]'); if(!r) return;
   const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(2,Math.min(r.dataset.altstep==='floatUp'?UP_MAX:DOWN_MAX,v)); persist();
-  if(autoBob()) floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
+  if(bobWas) floatAltT=altDir>0?Math.min(UP_MAX,+S.floatUp||12):-Math.min(DOWN_MAX,+S.floatDown||8);
 });
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-legspread]'); if(!r) return;
