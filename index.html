@@ -636,7 +636,7 @@ function drawProps(layer){
   const ps=Array.isArray(S.props)?S.props:[];
   return ps.map((p,i)=>{
     const T=PROP_TYPES[p.type]; if(!T) return '';
-    if(!!p.front!==(layer==='front')) return '';
+    if(!!p.front!==(layer==='front') || p.hidden) return '';
     const x=Math.max(10,Math.min(290,+p.x||60)), h=Math.max(T.hMin,Math.min(T.hMax,+p.h||T.hDef)), c=p.c||T.cols[0][0], e=edge(c);
     const lift=Math.max(0,Math.min(PROP_LIFT_MAX,+p.lift||0));
     if(p.type==='pole'){
@@ -658,7 +658,8 @@ function propsControls(){
   h+=`<div class="wardrobe">`;
   ps.forEach((p,i)=>{ const T=PROP_TYPES[p.type]; if(!T) return;
     const x=Math.round(+p.x||60), ht=Math.round(+p.h||T.hDef);
-    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>${p.front?'อยู่หน้าตัวละคร':'อยู่หลังตัวละคร'}</small>
+    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>${p.hidden?'ซ่อนอยู่':p.front?'อยู่หน้าตัวละคร':'อยู่หลังตัวละคร'}</small>
+      <span class="pat-row" style="margin-top:4px"><button class="pat ${p.hidden?'on':''}" data-prophide="${i}">${p.hidden?'👁 แสดงไม้พลอง':'🙈 ซ่อนไม้พลอง'}</button></span>
       <span class="pat-row" style="margin-top:4px"><button class="pat ${p.front?'':'on'}" data-propfront="${i}" data-v="0">หลังตัวละคร</button><button class="pat ${p.front?'on':''}" data-propfront="${i}" data-v="1">หน้าตัวละคร</button></span>
       <span class="mini-label">ความยาวไม้</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความยาวไม้"></span>
       <span class="mini-label">ความหนาไม้</span><span class="len-row"><input type="range" class="slider" min="${PROP_W_MIN}" max="${PROP_W_MAX}" step="1" value="${Math.round(+p.w||PROP_W_DEF)}" data-prop="${i}" data-pk="w" aria-label="ความหนาไม้"></span>
@@ -672,7 +673,9 @@ function propsControls(){
 }
 document.addEventListener('click',ev=>{
   const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]'), fr=ev.target.closest('[data-propfront]');
-  if(!a&&!d&&!c&&!dn&&!fr) return;
+  const hd=ev.target.closest('[data-prophide]');
+  if(!a&&!d&&!c&&!dn&&!fr&&!hd) return;
+  if(hd){ const p=(S.props||[])[+hd.dataset.prophide]; if(p){ p.hidden=!p.hidden; } update(); return; }
   if(fr){ const p=(S.props||[])[+fr.dataset.propfront]; if(p){ p.front=fr.dataset.v==='1'; } update(); return; }
   if(dn){ const p=(S.props||[])[+dn.dataset.propdance]; if(p){ p.dance=!p.dance; } update(); return; }
   S.props=Array.isArray(S.props)?S.props:[];
