@@ -2991,6 +2991,9 @@ let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipF
 const KNEEL_DROP=159;
 let floatK=0, floatLvShown=0, floatSide=1;
 const FLOAT_RISE=56;
+// floating altitude above the base height: target, current position, speed (spring-damper)
+let floatAltT=0, altPos=0, altV=0, altLastT=0;
+const ALT_K=18, ALT_D=5.2, ALT_MIN=-(FLOAT_RISE-6), ALT_MAX=130;
 let kneelE=0;
 (function hipLoop(t){
   requestAnimationFrame(hipLoop);
@@ -3039,7 +3042,10 @@ let kneelE=0;
     if(fe<.001) fl.removeAttribute('transform');
     else {
       // same height and lean at every level: 1–5 only sets how shy she is while floating
-      const rise=fe*FLOAT_RISE+Math.sin(t/1000)*4*fe;
+      // altitude follows its target on a soft spring: eases off, overshoots a little, settles
+      const dt=Math.min(.05,(t-(altLastT||t))/1000); altLastT=t;
+      altV += ((floatAltT-altPos)*ALT_K - altV*ALT_D)*dt; altPos += altV*dt;
+      const rise=fe*(FLOAT_RISE+altPos)+Math.sin(t/1000)*4*fe;
       const lean=fe*(floatSide*4.5 + Math.sin(t/1700)*1.6);
       // shrink her a touch (about the floor) when the lift would push her head out of the picture
       const top=34+BODY.dy*BODY.fit, k=Math.min(1,(566-14-rise)/Math.max(1,566-top));
@@ -3603,11 +3609,30 @@ function floatRow(){
   r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?jointHTML():'');
   if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-alt]'); if(!b) return;
+  const a=b.dataset.alt;
+  if(a==='reset') floatAltT=0;
+  else {
+    const step=a==='up'?(+S.floatUp||20):-(+S.floatDown||20);
+    floatAltT=Math.max(ALT_MIN,Math.min(ALT_MAX,floatAltT+step));
+    if((a==='up'&&floatAltT>=ALT_MAX)||(a==='down'&&floatAltT<=ALT_MIN)) toast(a==='up'?'สูงสุดแล้ว':'ต่ำสุดแล้ว');
+  }
+});
+document.addEventListener('input',ev=>{
+  const r=ev.target.closest('[data-altstep]'); if(!r) return;
+  const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(4,Math.min(80,v)); persist();
+});
 const JOINTS=[['hip','ต้นขา','หุบ','กาง',-20,40],['knee','เข่า','ตรง','งอ',0,75],['ank','ข้อเท้า','บิดเข้า','บิดออก',-35,35]];
 let jointSide='L';
 function jointHTML(){
   const sync=S.legSync!==false, side=sync?'L':jointSide, J=legJ(side);
+  const up=+S.floatUp||20, dn=+S.floatDown||20;
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
+    <div class="pat-row" style="align-items:center;margin-bottom:6px"><button class="btn small" data-alt="up">⬆ ลอยขึ้น</button><button class="btn small" data-alt="down">⬇ ลอยลง</button><button class="pat" data-alt="reset">↺ ความสูงเดิม</button></div>
+    <span class="mini-label">ลอยขึ้นครั้งละ</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้นต่อครั้ง"></span>
+    <span class="mini-label">ลอยลงครั้งละ</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลงต่อครั้ง"></span>
+    <hr style="border:none;border-top:1px solid var(--line);margin:10px 0 6px">
     <div class="pat-row" style="margin-bottom:4px"><button class="pat ${sync?'on':''}" data-jside="both">สองข้างพร้อมกัน</button><button class="pat ${!sync&&side==='L'?'on':''}" data-jside="L">ขาฝั่งซ้ายจอ</button><button class="pat ${!sync&&side==='R'?'on':''}" data-jside="R">ขาฝั่งขวาจอ</button></div>
     ${(()=>{ const lim=spreadLimit(); return lim!=null?`<span class="lock-note" style="font-size:12px">กระโปรงรัดต้นขาอยู่ อ้าขาได้สุด ${Math.round(lim)}° ต่อข้าง</span>`:''; })()}
     ${JOINTS.map(([k,n,a,b,mn,mx])=>`<span class="mini-label">${n} <small>(${a} ← → ${b})</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="${mn}" max="${mx}" step="1" value="${J[k]}" data-joint="${k}" aria-label="${n} (องศา)"><span class="nb-unit">°</span></span>`).join('')}
@@ -3632,7 +3657,7 @@ document.addEventListener('click',ev=>{
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
-  S.floatLv=L; persist(); floatRow();
+  S.floatLv=L; if(!L){ floatAltT=0; } persist(); floatRow();
   if(!prev || !L) think('event',{text:L?pick(['เอ๊ะ!? ตัว… ลอยขึ้นมาเอง!?','อ๊ะ! เท้าลอยพ้นพื้นแล้ว…!','ตัวเบาหวิวขึ้นมา… นี่มันอะไรกันเนี่ย']):pick(['ค่อยๆ ลงมาแตะพื้น… ใจหายหมดเลย','เท้าแตะพื้นแล้ว… โล่งอก']),force:true});
 });
 setTimeout(floatRow,0);
