@@ -3604,9 +3604,9 @@ function floatRow(){
   if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
 // floating shyness: the shyness level (0–10) is how restless she is in the air. At 0 she just hovers;
-// from 1 up she drifts up and down on her own, faster and bouncier with every level (10 = quickest).
+// 1–9 she drifts up and down on her own, faster and bouncier with every level; at 10 she freezes in mid-air.
 const altSpeed=()=>Math.max(0,Math.min(10,embLevel(EMB.v)));
-const autoBob=()=>floating() && altSpeed()>0;
+const autoBob=()=>floating() && altSpeed()>0 && altSpeed()<10;
 let bobWas=false;
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-altstep]'); if(!r) return;
@@ -3617,7 +3617,7 @@ function altHTML(){
   const up=+S.floatUp||20, dn=+S.floatDown||20, sp=altSpeed();
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <span class="mini-label" style="margin-top:0">ความเขินตอนลอย · ระดับ <b class="altlv">${sp}</b> <small>(ปรับที่แถบความเขินด้านบน)</small></span>
-    <span class="note altword" style="display:block;margin:2px 0 6px">${sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
+    <span class="note altword" style="display:block;margin:2px 0 6px">${sp>=10?'เขินจนตัวค้าง ลอยนิ่งอยู่กลางอากาศ':sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
     <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
     <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="50" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
 </div>`;
