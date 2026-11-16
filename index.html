@@ -578,6 +578,59 @@ function bodyStatic(root,st){
     const d=el.getAttribute('d'); if(d) el.setAttribute('d',remapD(d,B));
   });
 }
+/* ---------- props: scene pieces that always stand behind her ----------
+   Each prop: {id, type, x (centre, 0–300), h (height from the floor), c (colour)}. Starts with a staff/pole. */
+const PROP_TYPES={
+  pole:{name:'ไม้พลอง',ic:'🪵',hMin:40,hMax:520,hDef:330,cols:[['#a8743f','ไม้'],['#6b4428','ไม้เข้ม'],['#e2c48f','ไม้อ่อน'],['#2b2b33','ดำ'],['#b9bec7','เงิน'],['#c23d5a','แดง']]}
+};
+const FLOOR_Y=566;
+function drawProps(){
+  const ps=Array.isArray(S.props)?S.props:[];
+  return ps.map(p=>{
+    const T=PROP_TYPES[p.type]; if(!T) return '';
+    const x=Math.max(10,Math.min(290,+p.x||60)), h=Math.max(T.hMin,Math.min(T.hMax,+p.h||T.hDef)), c=p.c||T.cols[0][0], e=edge(c);
+    if(p.type==='pole'){
+      const w=7, top=FLOOR_Y-h, hi=shade(c,.28), dk=shade(c,-.22);
+      return `<g class="prop"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="11" ry="2.6" fill="#2d2430" opacity=".14"/>
+        <rect x="${x-w/2}" y="${top}" width="${w}" height="${h}" rx="3.5" fill="${c}" stroke="${e}" stroke-width=".9"/>
+        <rect x="${x-w/2+1.2}" y="${top+3}" width="1.6" height="${Math.max(0,h-6)}" rx=".8" fill="${hi}" opacity=".7"/>
+        <rect x="${x+w/2-2}" y="${top+3}" width="1.2" height="${Math.max(0,h-6)}" rx=".6" fill="${dk}" opacity=".5"/>
+        <rect x="${x-w/2}" y="${top+10}" width="${w}" height="2" fill="${dk}" opacity=".35"/><rect x="${x-w/2}" y="${FLOOR_Y-12}" width="${w}" height="2" fill="${dk}" opacity=".35"/></g>`;
+    }
+    return '';
+  }).join('');
+}
+function propsControls(){
+  const open=!WCOL.has('props'), ps=Array.isArray(S.props)?S.props:[];
+  let h=`<button class="sec-fold ${open?'open':''}" data-fold="props" aria-expanded="${open}"><span class="fold-ar">▸</span><span class="fold-name">อุปกรณ์ประกอบฉาก</span><span class="fold-n">${ps.length}</span>${ps.length?`<span class="fold-worn">${ps.map(p=>PROP_TYPES[p.type]?.name||'').join(', ')}</span>`:''}</button>`;
+  if(!open) return h;
+  h+=`<div class="wardrobe">`;
+  ps.forEach((p,i)=>{ const T=PROP_TYPES[p.type]; if(!T) return;
+    const x=Math.round(+p.x||60), ht=Math.round(+p.h||T.hDef);
+    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>อยู่หลังตัวละครเสมอ</small>
+      <span class="mini-label">ความสูงจากพื้น</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความสูงจากพื้น"></span>
+      <span class="mini-label">ตำแหน่ง <small>(ซ้าย ← → ขวา)</small></span><span class="len-row"><input type="range" class="slider" min="10" max="290" step="1" value="${x}" data-prop="${i}" data-pk="x" aria-label="ตำแหน่งซ้ายขวา"></span>
+      <span class="mini-label">สี</span><span class="swatches mini">${T.cols.map(([c,n])=>`<button class="sw ${c===(p.c||T.cols[0][0])?'on':''}" style="background:${c}" data-propc="${i}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</span></span>
+      <button class="btn small" data-propdel="${i}">ลบ</button></div>`; });
+  h+=`</div><div class="pat-row" style="margin:8px 0 4px">${Object.entries(PROP_TYPES).map(([k,T])=>`<button class="pat" data-propadd="${k}">+ ${T.ic} ${T.name}</button>`).join('')}</div>`;
+  return h;
+}
+document.addEventListener('click',ev=>{
+  const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]');
+  if(!a&&!d&&!c) return;
+  S.props=Array.isArray(S.props)?S.props:[];
+  if(a){ const T=PROP_TYPES[a.dataset.propadd]; const n=S.props.length; S.props.push({type:a.dataset.propadd, x:n%2?240:60, h:T.hDef, c:T.cols[0][0]}); }
+  if(d) S.props.splice(+d.dataset.propdel,1);
+  if(c && S.props[+c.dataset.propc]) S.props[+c.dataset.propc].c=c.dataset.c;
+  update();
+});
+document.addEventListener('input',ev=>{
+  const r=ev.target.closest('[data-prop]'); if(!r) return;
+  const p=(S.props||[])[+r.dataset.prop]; if(!p) return;
+  const v=parseFloat(r.value); if(isNaN(v)) return;
+  p[r.dataset.pk]=Math.max(+r.min,Math.min(+r.max,v));
+  paintCanvas(); persist();
+});
 function bodyControls(){
   const open=!WCOL.has('body'), changed=BODY_PARTS.some(([k])=>S[k]!=null && +S[k]!==100);
   let h=`<button class="sec-fold ${open?'open':''}" data-fold="body" aria-expanded="${open}"><span class="fold-ar">▸</span><span class="fold-name">รูปร่าง</span><span class="fold-n">${BODY_PARTS.length}</span>${changed?'<span class="fold-worn">ปรับแล้ว</span>':''}</button>`;
@@ -2365,7 +2418,7 @@ function render(state=S){
   const prevBody=BODY; BODY=bodyCalc(state);
   const HT=(BODY.on?`translate(0 ${BODY.dy.toFixed(2)}) `:'')+HEAD_T;
   const skin=SKINS[S.skin], skE=shade(skin,-.16), h=HAIRCOLORS[S.hairColor][0];
-  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+(live?FLOAT_BACK:'')+'<g class="fig"><g class="floater">'+(live?FLOAT_AURA:'')+'<g class="breath"><g class="hopper"><g class="tremble">';
+  let g=drawBg('studio')+(live && BGIMG.on && BGIMG.data ? BG_IMG_SVG : '')+(live?drawProps():'')+'<clipPath id="kc"><rect class="kneelrect" x="-100" y="-200" width="500" height="800"/></clipPath>'+(BODY.fit<.999?`<g transform="translate(150 566) scale(${BODY.fit.toFixed(4)}) translate(-150 -566)">`:'<g>')+(live?FLOAT_BACK:'')+'<g class="fig"><g class="floater">'+(live?FLOAT_AURA:'')+'<g class="breath"><g class="hopper"><g class="tremble">';
   g+=`<g class="bow"><g class="head"><g transform="${HT}">${defaultHairBack(h)}</g></g></g>`;
   // lighting: soft key light from the upper left, form shadows that wrap around each limb
   g+=`<defs><linearGradient id="lit" gradientUnits="userSpaceOnUse" x1="108" y1="0" x2="192" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#4a2418" stop-opacity=".16"/></linearGradient></defs>`;
@@ -2638,7 +2691,7 @@ $('stage').addEventListener('click',e=>{
 });
 $('stage').addEventListener('animationend',e=>{ if(e.animationName==='hop') $('stage').classList.remove('hop'); });
 $('btnReset').onclick=()=>{ const keep=floatKeep(); S=clone(DEFAULT); Object.assign(S,keep); update(); toast('กลับไปลุคเริ่มต้น'); };
-function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown}; }
+function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown, props:S.props, legSpread:S.legSpread}; }
 
 /* ---------- saved looks ---------- */
 let looks=[];
@@ -2650,7 +2703,7 @@ function renderLooks(){
     : `<div class="empty">ยังไม่มีลุคที่เก็บไว้ กด ♡ เก็บลุคนี้ เมื่อแต่งได้ถูกใจ</div>`;
   $('looks').querySelectorAll('.look').forEach((el,i)=>{ const sv=el.querySelector('svg'); if(sv && looks[i]) bodyStatic(sv,looks[i]); });
 }
-$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
+$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; delete lk.props;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
 $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
@@ -4123,7 +4176,7 @@ function wardrobeHTML(){
   const slotKey={top:'wTop',bottom:'wBottom',dress:'wDress',belt:'wBelt',shoes:'wShoes',socks:'wSocks',outer:'wOuter',eyes:'wEyes',mask:'wMask',glass:'wGlass',face:'wFace'}, colKey={top:'wTopC',bottom:'wBottomC',dress:'wDressC',belt:'beltC',shoes:'wShoesC',socks:'wSocksC',outer:'wOuterC',eyes:'wEyesC',mask:'wMaskC',glass:'wGlassC',face:'wFaceC'};
   const anyWorn=WEAR_KEYS.some(k=>S[k]);
   const clearBtn=anyWorn?`<button class="btn small" data-clearall="1">🧺 ถอดทั้งหมด</button>`:(LAST_CLEAR?`<button class="btn small" data-undoclear="1">↩ ใส่ชุดเดิมกลับ</button>`:'');
-  let h=bodyControls()+`<div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">ตู้เสื้อผ้า${clearBtn}</div><div class="wardrobe">
+  let h=bodyControls()+propsControls()+`<div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">ตู้เสื้อผ้า${clearBtn}</div><div class="wardrobe">
     <div class="wear"><span class="wear-ic">👙</span><span class="wear-body"><b>ชุดชั้นใน</b><small>ใส่อยู่ข้างในเสมอ</small><span class="mini-label">กางเกงใน</span><span class="pat-row"><button class="pat ${briefRise()<.5?'on':''}" data-brief="0">เอวปกติ</button><button class="pat ${briefRise()>=.5?'on':''}" data-brief="9">เอวสูง</button></span><span class="len-row"><span>ความสูงขอบ</span><input type="range" class="slider" min="0" max="12" step=".5" value="${briefRise()}" data-brise="1" aria-label="ความสูงขอบกางเกงใน"><b class="pv">${briefRise()} ซม.</b></span></span></div></div>`;
   for(const slot of ['top','tie','bottom','dress','outer','shoes','socks','belt','glass','eyes','face']){
     if(slot==='tie'){ h+=tieSectionHTML(); continue; }
