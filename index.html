@@ -2810,7 +2810,22 @@ function shrugShift(x,y){
 }
 let FLOATFE=0, floatApplied=0;
 const footY=y=>y;   // feet keep their normal shape while floating
-let SKIRTON=false;
+let SKIRTON=false, LEGON=false, spreadApplied=0;
+// floating: the legs may part a little (a few degrees, both sides alike). The legs and what's on them turn
+// at the hip; skirts, dresses and coat hems are pushed out the same amount so the legs stay inside.
+const SPREAD_MAX=8, HIP_PY=296;
+const legSpread=()=>Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))*FLOATFE;
+function spreadLeg(x,y,a){
+  const w=Math.min(1,(y-HIP_PY)/14), px=x<150?136:164, r=(x<150?1:-1)*a*w*Math.PI/180;
+  const dx=x-px, dy=y-HIP_PY, c=Math.cos(r), sn=Math.sin(r);
+  return [px+dx*c-dy*sn, HIP_PY+dx*sn+dy*c];
+}
+function spreadSkirt(x,y,a){
+  // how far a leg at this height swings out, blended across the middle so the centre stays put
+  const w=Math.min(1,(y-HIP_PY)/14), d=(y-HIP_PY)*Math.sin(a*w*Math.PI/180);
+  let t=Math.max(-1,Math.min(1,(x-150)/22)); t=t*Math.abs(t)*(3-2*Math.abs(t))/1;
+  return x+d*Math.sign(t)*Math.min(1,Math.abs(t));
+}
 // floating skirts react to the lift: hem rises and flares (or trails down and narrows), with a flutter on top
 function skirtPhys(x,y){
   const top=228, hem=Math.max(top+20,skirtLen()+6);
@@ -2827,11 +2842,13 @@ function deformPath(d,k,hx,kn,F,Rp){
   return d.replace(/(-?\d+(?:\.\d+)?)([ ,]+)(-?\d+(?:\.\d+)?)/g,(m,xs,sep,ys)=>{
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
+    const spr=legSpread();
+    if(spr>.01 && y>HIP_PY){ if(LEGON) [x,y]=spreadLeg(x,y,spr); else if(SKIRTON) x=spreadSkirt(x,y,spr); }
     if(SKIRTON && FLOATFE>0 && (Math.abs(SKLIFT)>.03||skFlapA>.03)) [x,y]=skirtPhys(x,y);
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !((LEGON||SKIRTON) && spr>.01 && parseFloat(ys)>HIP_PY) && !(SKIRTON && FLOATFE>0 && parseFloat(ys)>228 && (Math.abs(SKLIFT)>.03||skFlapA>.03))) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
     return (x+hs).toFixed(2)+sep+RY(footY(y)).toFixed(2);
@@ -2840,8 +2857,8 @@ function deformPath(d,k,hx,kn,F,Rp){
 let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && Math.abs(SKLIFT-skLiftApplied)<.04 && skFlapA<.03;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; skLiftApplied=SKLIFT; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && Math.abs(SKLIFT-skLiftApplied)<.04 && Math.abs(legSpread()-spreadApplied)<.01 && skFlapA<.03;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; skLiftApplied=SKLIFT; spreadApplied=legSpread(); }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -2849,8 +2866,8 @@ function applyPose(k,force){
   const ptOf=(x,y,F,Rp)=>{ const m=/(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(deformPath(`M${x} ${y}`,k,hipX,kneelE,F,Rp)); return [+m[1],+m[2]]; };
   c.querySelectorAll(sel).forEach(el=>{
     const tag=el.tagName;
-    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-skirt]')?'2':'0');
-    SKIRTON=el.dataset.lg==='2';
+    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':el.closest('[data-skirt]')?'2':'0');
+    SKIRTON=el.dataset.lg==='2'; LEGON=el.dataset.lg==='1';
     // badges, pins, buttons: things sewn onto the cloth ride along with the point they're attached to
     // printed patterns: shear the fill so the print rides along with the cloth (top of the garment and its hem)
     if(el.classList && el.classList.contains('patfill')){
@@ -2874,7 +2891,7 @@ function applyPose(k,force){
     const F=fOf(el), Rp=rOf(el);
     el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on && FLOATFE<.002) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
-  SKIRTON=false;
+  SKIRTON=false; LEGON=false;
 }
 /* ---------- the player's own background pictures (several; tap one to switch) ----------
    Kept only in this browser — never part of the page itself, so they aren't published anywhere.
@@ -3613,11 +3630,16 @@ document.addEventListener('input',ev=>{
   const v=parseFloat(r.value); if(isNaN(v)) return; S[r.dataset.altstep]=Math.max(4,Math.min(80,v)); persist();
   if(autoBob()) floatAltT=altDir>0?(+S.floatUp||20):-(+S.floatDown||20);
 });
+document.addEventListener('input',ev=>{
+  const r=ev.target.closest('[data-legspread]'); if(!r) return;
+  const v=parseFloat(r.value); if(isNaN(v)) return; S.legSpread=Math.max(0,Math.min(SPREAD_MAX,v)); persist();
+});
 function altHTML(){
   const up=+S.floatUp||20, dn=+S.floatDown||20, sp=altSpeed();
   return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
     <span class="mini-label" style="margin-top:0">ความเขินตอนลอย · ระดับ <b class="altlv">${sp}</b> <small>(ปรับที่แถบความเขินด้านบน)</small></span>
     <span class="note altword" style="display:block;margin:2px 0 6px">${sp>=10?'เขินจนตัวค้าง ลอยนิ่งอยู่กลางอากาศ':sp?'ลอยขึ้นลงเอง ยิ่งเขินยิ่งเร็ว':'ลอยนิ่งๆ อยู่กับที่'}</span>
+    <span class="mini-label">อ้าขา <small>(0–${SPREAD_MAX}°)</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="0" max="${SPREAD_MAX}" step="1" value="${Math.max(0,Math.min(SPREAD_MAX,+S.legSpread||0))}" data-legspread="1" aria-label="อ้าขา (องศา)"></span>
     <span class="mini-label">ลอยขึ้นได้สูงสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="80" step="1" value="${up}" data-altstep="floatUp" aria-label="ระยะลอยขึ้น"></span>
     <span class="mini-label">ลอยลงได้ต่ำสุด</span><span class="len-row" style="margin:0"><input type="range" class="slider" min="4" max="50" step="1" value="${dn}" data-altstep="floatDown" aria-label="ระยะลอยลง"></span>
 </div>`;
