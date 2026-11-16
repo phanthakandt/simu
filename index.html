@@ -2374,7 +2374,7 @@ function render(state=S){
   g+=drawOuterBack();
   g+=drawTopBackSleeves();
   // body
-  g+=`<path data-pose="1" d="${BODY_L}" fill="${skin}"/><path data-pose="1" d="${BODY_R}" fill="${skin}"/><path data-pose="1" d="M150 118 L150 200 L150 215 L150 230 L150 245 L150 260 L150 287" stroke="${skin}" stroke-width="2.4" fill="none"/>`;
+  g+=`<path data-pose="1" data-leg="1" d="${BODY_L}" fill="${skin}"/><path data-pose="1" data-leg="1" d="${BODY_R}" fill="${skin}"/><path data-pose="1" d="M150 118 L150 200 L150 215 L150 230 L150 245 L150 260 L150 287" stroke="${skin}" stroke-width="2.4" fill="none"/>`;
   // shoulder joint: cover the body outline where the arm meets the shoulder
   g+=[ARM_L,ARM_R].map((a,i)=>{const [sx,sy]=a.s,[ex,ey]=a.e,px=sx+(ex-sx)*.4,py=sy+(ey-sy)*.4;return `<path data-pose="1" d="M${sx} ${sy+1} L${px} ${py}" stroke="${skin}" stroke-width="9.6" stroke-linecap="round" fill="none"/>`}).join('');
   // base layer: tube top + briefs (clothes come later)
@@ -2382,7 +2382,7 @@ function render(state=S){
   const TUBE='M90 183 Q150 177 210 183 L210 207 Q150 212 90 207 Z';
   const BT=briefTop();   // high-waisted briefs come up toward the natural waist
   const BRIEF=`M90 ${BT} Q150 ${BT-5} 210 ${BT} L210 262 Q170 266 154 288.6 L146 288.6 Q130 266 90 262 Z`;
-  g+=`<clipPath id="bd"><path data-pose="1" d="${BODY_L}"/><path data-pose="1" d="${BODY_R}"/></clipPath><g clip-path="url(#bd)">`
+  g+=`<clipPath id="bd"><path data-pose="1" data-leg="1" d="${BODY_L}"/><path data-pose="1" data-leg="1" d="${BODY_R}"/></clipPath><g clip-path="url(#bd)">`
     // skin: directional light + soft form shadow along every edge
     +`<rect x="0" y="0" width="300" height="600" fill="url(#lit)"/>`
     +`<path d="${BODY_EDGE}" stroke="#5a2a1a" stroke-width="8" fill="none" opacity=".13" filter="url(#soft)"/><path d="${BODY_EDGE_R}" stroke="#5a2a1a" stroke-width="10" fill="none" opacity=".17" filter="url(#soft)"/>`
@@ -2404,12 +2404,12 @@ function render(state=S){
     +`</g>`
     +`<path data-pose="1" d="M90 183 Q150 177 210 183 M90 207 Q150 212 210 207 M90 ${BT} Q150 ${BT-5} 210 ${BT} M210 262 Q170 266 154 288.6 M90 262 Q130 266 146 288.6" stroke="${scE}" stroke-width="1" fill="none" opacity=".8"/>`
     +`</g>`;
-  g+=`<path data-pose="1" d="${BODY_EDGE}" fill="none" stroke="${skE}" stroke-width="1"/><path data-pose="1" d="${BODY_EDGE_R}" fill="none" stroke="${skE}" stroke-width="1"/>`;
-  g+=`<path data-pose="1" d="M129.5 400 Q134.5 405 140.5 401 M159.5 401 Q165.5 405 170.5 400" stroke="${skE}" stroke-width="1" fill="none" opacity=".5"/>`;
+  g+=`<path data-pose="1" data-leg="1" d="${BODY_EDGE}" fill="none" stroke="${skE}" stroke-width="1"/><path data-pose="1" data-leg="1" d="${BODY_EDGE_R}" fill="none" stroke="${skE}" stroke-width="1"/>`;
+  g+=`<path data-pose="1" data-leg="1" d="M129.5 400 Q134.5 405 140.5 401 M159.5 401 Q165.5 405 170.5 400" stroke="${skE}" stroke-width="1" fill="none" opacity=".5"/>`;
   // soft natural pink on the knees (under every sock and skirt); a deeper rose on darker skin so it still reads
   { const kp=S.skin==='deep'?'#c96a72':S.skin==='tan'?'#e58b8f':'#f29aa2', ko=S.skin==='deep'?.38:.42;
     g+=`<radialGradient id="kneeb"><stop offset="0" stop-color="${kp}" stop-opacity="${ko}"/><stop offset=".55" stop-color="${kp}" stop-opacity="${(ko*.55).toFixed(2)}"/><stop offset="1" stop-color="${kp}" stop-opacity="0"/></radialGradient>`
-      +`<g data-pose="g"><ellipse cx="133.4" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/><ellipse cx="166.6" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/></g>`; }
+      +`<g data-pose="g" data-leg="1"><ellipse cx="133.4" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/><ellipse cx="166.6" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/></g>`; }
   // an untucked top hangs over the skirt: the skirt may only show below the top's hem, never poke out past its sides
   const underTop=h=>{
     if(!h || !S.wTop || S.tuck) return h;
@@ -2444,8 +2444,8 @@ function render(state=S){
   const underOuter=(h,narrow)=> S.wOuter&&h ? `<clipPath id="outc${narrow?'n':''}"><path data-pose="1" d="${outClip(narrow)}"/></clipPath><g clip-path="url(#outc${narrow?'n':''})">${h}</g>` : h;
   const drawTopG=()=> underOuter((S.wTop && CLOTH_DRAW[S.wTop]) ? `<g data-pose="g">${withPattern(CLOTH_DRAW[S.wTop](S.wTopC||cloth(S.wTop).c),'top')}</g>` : '', true);
   // tucked in: everything of the top below the waistband disappears inside the skirt
-  if(S.wSocks && cloth(S.wSocks)) g+=`<g data-pose="g">${drawSocks()}</g>`;
-  if(S.wShoes && CLOTH_DRAW[S.wShoes]) g+=`<g data-pose="g">${CLOTH_DRAW[S.wShoes](S.wShoesC||cloth(S.wShoes).c)}</g>`;
+  if(S.wSocks && cloth(S.wSocks)) g+=`<g data-pose="g" data-leg="1">${drawSocks()}</g>`;
+  if(S.wShoes && CLOTH_DRAW[S.wShoes]) g+=`<g data-pose="g" data-leg="1">${CLOTH_DRAW[S.wShoes](S.wShoesC||cloth(S.wShoes).c)}</g>`;
   const beltG = S.wBelt ? `<g data-pose="g">${drawBelt()}</g>` : '';
   if(S.wDress && CLOTH_DRAW[S.wDress]) g+=underOuter(`<g data-pose="g"${flowFactor('dress')?` data-flow="${flowFactor('dress')}" data-rip="${rippleFactor('dress')}"`:''}>${withPattern(CLOTH_DRAW[S.wDress](S.wDressC||cloth(S.wDress).c),'dress')}</g>`)+beltG;
   else g+= S.tuck && S.wBottom ? `<clipPath id="tuckc"><rect x="0" y="0" width="300" height="${(BODY.on?ryB(BODY,bottomWaist()+.6):bottomWaist()+.6).toFixed(2)}"/></clipPath><g clip-path="url(#tuckc)">${drawTopG()}</g>`+drawBot()+beltG : (beltLocked() ? underTop(drawBot()+beltG)+drawTopG() : underTop(drawBot())+drawTopG()+beltG);
@@ -2810,25 +2810,43 @@ function shrugShift(x,y){
 // floating: feet hang with the toes pointing down, so each foot reads longer from the front
 let FLOATFE=0, floatApplied=0;
 const footY=y=>FLOATFE>0 && y>546 ? 546+(y-546)*(1+.9*FLOATFE) : y;
+/* ---------- leg joints while floating: hip (swing in/out), knee (bend back), ankle (turn the foot) ----------
+   Only the legs and what's worn on them (socks, shoes) follow; skirts and dresses keep hanging as they are. */
+let LEGON=false, jointVer=0, jointApplied=-1;
+const HIP_Y=296, KNEE_J=400, ANK_Y=540;
+function legJ(side){ const J=(S.legJ&&S.legJ[side])||{}; return {hip:+J.hip||0,knee:+J.knee||0,ank:+J.ank||0}; }
+function rotPt(x,y,px,py,deg){ const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a), dx=x-px, dy=y-py; return [px+dx*c-dy*s, py+dx*s+dy*c]; }
+function legJoint(x,y){
+  if(y<=HIP_Y) return [x,y];
+  const L=x<150, sg=L?1:-1, J=legJ(L?'L':'R'), e=FLOATFE;
+  const hx=L?136:164, ax=L?135:165;
+  // pull the joint in gently over the first few units below the hip so the crotch line doesn't tear
+  const w=Math.min(1,(y-HIP_Y)/14);
+  if(J.ank) [x,y]=rotPt(x,y,ax,ANK_Y,sg*J.ank*e*(y>ANK_Y-4?1:0));
+  if(J.knee && y>KNEE_J){ const f=Math.cos(J.knee*e*Math.PI/180); y=KNEE_J+(y-KNEE_J)*f; }
+  if(J.hip) [x,y]=rotPt(x,y,hx,HIP_Y,sg*J.hip*e*w);
+  return [x,y];
+}
 function deformPath(d,k,hx,kn,F,Rp){
   // 1) fold the lower legs when kneeling, 2) knees toward the centre line, 3) hips slide sideways by hx
   return d.replace(/(-?\d+(?:\.\d+)?)([ ,]+)(-?\d+(?:\.\d+)?)/g,(m,xs,sep,ys)=>{
     let x=parseFloat(xs), y=parseFloat(ys);
     if(kn>0 && y>KNEE_Y){ [x,y]=foldPoint(x,y,kn); }
+    if(LEGON && FLOATFE>0 && y>HIP_Y){ y=footY(y); [x,y]=legJoint(x,y); }
     const sh=poseShift(y,k), hs=hx*hipWeight(y);
     const sg=shrugShift(x,y);
     if(sg){ x+=sg[0]; y+=sg[1]; }
-    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
+    if(!sh && !hs && !F && !sg && !(kn>0 && parseFloat(ys)>KNEE_Y) && !(FLOATFE>0 && y>546) && !(LEGON && FLOATFE>0 && parseFloat(ys)>HIP_Y)) return BODY.on ? xs+sep+RY(y).toFixed(2) : m;
     if(sh && Math.abs(x-150)>=.01) x = x<150?Math.min(149.4,x+sh):Math.max(150.6,x-sh);
     if(F){ const [fx,fy]=flowShift(x,y,F,Rp===undefined?1:Rp); x+=fx; y+=fy; }
-    return (x+hs).toFixed(2)+sep+RY(footY(y)).toFixed(2);
+    return (x+hs).toFixed(2)+sep+RY(LEGON?y:footY(y)).toFixed(2);
   });
 }
 let hipX=0, hipApplied=0, kneelApplied=0, shrugK=0, shrugT=0, shrugApplied=0;
 function applyPose(k,force){
   const c=$('canvas'); if(!c) return;
-  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004;
-  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; }
+  const poseSame = !force && Math.abs(k-poseApplied)<.01 && Math.abs(hipX-hipApplied)<.05 && Math.abs(kneelE-kneelApplied)<.004 && Math.abs(shrugK-shrugApplied)<.01 && Math.abs(FLOATFE-floatApplied)<.004 && jointApplied===jointVer;
+  if(!poseSame){ poseApplied=k; hipApplied=hipX; kneelApplied=kneelE; shrugApplied=shrugK; floatApplied=FLOATFE; jointApplied=jointVer; }
   const sel = poseSame ? '[data-flow] path,[data-flow] circle,[data-flow] ellipse,[data-flow] [data-tr],[data-flow] rect.patfill'
                        : '[data-pose="1"],[data-pose="g"] path,[data-pose="g"] rect,[data-pose="g"] circle,[data-pose="g"] ellipse,[data-pose="g"] [data-tr]';
   const fOf=el=>{ if(el.dataset.fl===undefined){ const fg=el.closest('[data-flow]'); el.dataset.fl=fg?fg.dataset.flow:'0'; el.dataset.rp=fg?(fg.dataset.rip||'1'):'1'; } return +el.dataset.fl; };
@@ -2836,6 +2854,8 @@ function applyPose(k,force){
   const ptOf=(x,y,F,Rp)=>{ const m=/(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(deformPath(`M${x} ${y}`,k,hipX,kneelE,F,Rp)); return [+m[1],+m[2]]; };
   c.querySelectorAll(sel).forEach(el=>{
     const tag=el.tagName;
+    if(el.dataset.lg===undefined) el.dataset.lg=(el.closest('[data-leg]')?'1':'0');
+    LEGON=el.dataset.lg==='1';
     // badges, pins, buttons: things sewn onto the cloth ride along with the point they're attached to
     // printed patterns: shear the fill so the print rides along with the cloth (top of the garment and its hem)
     if(el.classList && el.classList.contains('patfill')){
@@ -2859,6 +2879,7 @@ function applyPose(k,force){
     const F=fOf(el), Rp=rOf(el);
     el.setAttribute('d', (k<.005 && Math.abs(hipX)<.02 && kneelE<.002 && !F && shrugK<.005 && !BODY.on && FLOATFE<.002) ? el.dataset.d0 : deformPath(el.dataset.d0,k,hipX,kneelE,F,Rp));
   });
+  LEGON=false;
 }
 /* ---------- the player's own background pictures (several; tap one to switch) ----------
    Kept only in this browser — never part of the page itself, so they aren't published anywhere.
@@ -3556,8 +3577,35 @@ if((+S.floatLv||0)>1) S.floatLv=1;       // floating is simply on (1) or off (0)
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
   const on=floating();
-  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`;
+  r.style.flexWrap='wrap';
+  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?jointHTML():'');
+  if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
+const JOINTS=[['hip','ต้นขา','หุบ','กาง',-20,40],['knee','เข่า','ตรง','งอ',0,75],['ank','ข้อเท้า','บิดเข้า','บิดออก',-35,35]];
+let jointSide='L';
+function jointHTML(){
+  const sync=S.legSync!==false, side=sync?'L':jointSide, J=legJ(side);
+  return `<div style="flex-basis:100%;background:#fff;border-radius:12px;padding:8px 10px;margin-top:4px">
+    <div class="pat-row" style="margin-bottom:4px"><button class="pat ${sync?'on':''}" data-jside="both">สองข้างพร้อมกัน</button><button class="pat ${!sync&&side==='L'?'on':''}" data-jside="L">ขาฝั่งซ้ายจอ</button><button class="pat ${!sync&&side==='R'?'on':''}" data-jside="R">ขาฝั่งขวาจอ</button></div>
+    ${JOINTS.map(([k,n,a,b,mn,mx])=>`<span class="mini-label">${n} <small>(${a} ← → ${b})</small></span><span class="len-row" style="margin:0"><input type="range" class="slider" min="${mn}" max="${mx}" step="1" value="${J[k]}" data-joint="${k}" aria-label="${n} (องศา)"><span class="nb-unit">°</span></span>`).join('')}
+    <div class="pat-row" style="margin-top:6px"><button class="pat" data-jreset="1">↺ ขาตรงเหมือนเดิม</button></div></div>`;
+}
+document.addEventListener('input',ev=>{
+  const r=ev.target.closest('[data-joint]'); if(!r) return;
+  const v=parseFloat(r.value); if(isNaN(v)) return;
+  S.legJ=S.legJ||{L:{},R:{}}; S.legJ.L=S.legJ.L||{}; S.legJ.R=S.legJ.R||{};
+  const val=Math.max(+r.min,Math.min(+r.max,v)), sync=S.legSync!==false;
+  if(sync){ S.legJ.L[r.dataset.joint]=val; S.legJ.R[r.dataset.joint]=val; } else S.legJ[jointSide][r.dataset.joint]=val;
+  jointVer++; persist();
+});
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-jside],[data-jreset]'); if(!b) return;
+  if(b.dataset.jreset){ S.legJ={L:{},R:{}}; jointVer++; persist(); floatRow(); return; }
+  const v=b.dataset.jside;
+  if(v==='both'){ S.legSync=true; if(S.legJ&&S.legJ.L) S.legJ.R={...S.legJ.L}; jointVer++; }
+  else { S.legSync=false; jointSide=v; }
+  persist(); floatRow();
+});
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-floatlv]'); if(!b) return;
   const prev=+S.floatLv||0, L=+b.dataset.floatlv; if(L===prev) return;
