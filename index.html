@@ -3500,6 +3500,44 @@ document.addEventListener('click',ev=>{
   if(b.dataset.lvclose){ closeModal(); lvThNote(); }
 });
 setTimeout(lvThNote,0);
+/* ---------- flustered speech: the shyer she gets, the less her thoughts hold together ----------
+   Low levels: whole sentences, still not used to this body. Mid: broken clauses, stutters, trailing off.
+   High: no sentences at all — a word, a gasp, an "อ๊ะ!". Level 10 keeps its own long sigh. */
+const STAMMER=[
+  null,
+  ['เอ๊ะ… นี่ตัวเราจริงๆ เหรอ','ยังไม่ชินเลยแฮะ… ร่างนี้','แปลกๆ แฮะ… เวลาขยับตัว','อ๊ะ… ผมยาวมาบังตาอีกแล้ว','เสียงตัวเอง… ยังแปลกหูอยู่เลย'],
+  ['เอ๊ะ… ทำไมรู้สึกแปลกๆ','ยังไม่ชิน… จริงๆ นะ','อืม… ไม่ค่อยชินเลย','ตัวเบาจัง… ไม่ชินเลย','อ๊ะ… ไหล่แคบลงตั้งเยอะ'],
+  ['อ๊ะ! …ไม่ชินเลย','เอ๊ะ… หน้าร้อน… ทำไม','ส-สั้นไป… ไหมนะ','อย่า… อย่าเพิ่งมองสิ','เดี๋ยว… เดี๋ยวก่อน…'],
+  ['อ๊ะ… ไม่ชิน…','เอ๊ะ!? …ทำไม…','สั้น… สั้นไป…','อ-อย่ามอง…','ม-ไม่ได้… เขินนะ…','ห-หน้า… ร้อน…'],
+  ['อ๊ะ…!','ส-สั้น…','ม-ไม่… ไม่ใช่…','ห-หน้า… ร้อน…','เอ๊ะ!? …','ข-ขา… ไม่มีแรง…'],
+  ['อ๊ะ!','เอ๊ะ…!?','ส-สั้น…!','ไม่… ไม่ชิน…','ร้อน…','อ-อย่า…'],
+  ['อ๊ะ!','เอ๊ะ!?','อึก…','ม-ม…','ฮึ…','ส-ส…','…ร้อน'],
+  ['อ๊ะ…!','อึก…!','…','ม-ไม่…','ฮือ…','อ-อ๊ะ…'],
+  ['…!','อ๊ะ…','อึก…','ฮ-ฮือ…','…ม-ไม่…','…'],
+];
+const thSeg=(()=>{ try{ const sg=new Intl.Segmenter('th',{granularity:'word'}); return t=>[...sg.segment(t)].filter(x=>x.isWordLike).map(x=>x.segment); }catch(e){ return t=>t.split(/\s+/); } })();
+// "สั้น" → "ส-สั้น", "ไม่" → "ม-ไม่", "เขิน" → "ข-เขิน" (the sound starts on the consonant, not a leading vowel)
+const stutter=w=>{ if(!w) return w; const h=/^[เแโใไ]/.test(w)?w.charAt(1):w.charAt(0); return h+'-'+w; };
+function flusterize(text,L){
+  if(!text || L<=2 || L>=10) return text;
+  const first=text.split(/\.\.\.|…|[,!?]| — /)[0].trim()||text;
+  const words=thSeg(first).filter(w=>w.length>0);
+  if(!words.length) return text;
+  const lead=()=>pick(['อ๊ะ… ','เอ๊ะ… ','อ… ','']);
+  if(L<=4){ // a broken-off clause, maybe a stutter on the first word
+    const n=Math.max(2,Math.min(words.length,6-(L-3)*2));
+    let w=words.slice(0,n); if(Math.random()<.5) w[0]=stutter(w[0]);
+    return lead()+w.join('')+'…';
+  }
+  if(L<=6){ // two or three words, scattered
+    const n=Math.min(words.length,L===5?3:2);
+    const w=words.slice(0,n); w[0]=stutter(w[0]);
+    return lead()+w.join('… ')+'…';
+  }
+  // 7–9: one stammered word, or nothing but a gasp
+  if(Math.random()<.45) return pick(STAMMER[L]);
+  return (Math.random()<.5?pick(['อ๊ะ! ','เอ๊ะ…!? ','อึก… ']):'')+stutter(words[0])+'…';
+}
 function think(kind, opt={}){
   const now=Date.now();
   if(EMB_SPIKE[kind]) EMB.spike=Math.min(SPIKE_CAP,EMB.spike+EMB_SPIKE[kind]);
@@ -3514,12 +3552,18 @@ function think(kind, opt={}){
     else if(kind==='idle' && EMB.v>70 && Math.random()<.35) src=TH.shy.racing;
     else if(kind==='idle' && EMB.v>65 && Math.random()<.6) src=TH.shy.hot;
     else if(kind==='idle' && EMB.v<35 && MIND.fam>=50 && Math.random()<.3) src=TH.shy.calm;
+    // the more flustered, the more often she can't form a thought at all
+    const L0=embLevel(EMB.v);
+    if(kind==='idle' && L0>=1 && L0<=9 && Math.random()<Math.min(.85,.15+L0*.08)){ src=STAMMER[L0]; opt={...opt,raw:true}; }
     const pool=src.filter(t=>t!==lastThought);
     if(!pool.length) return;
     text=pick(pool);
   }
+  // everything she thinks (worries, reactions to clothes, events) breaks apart as the shyness climbs
+  let custom=false;
+  if(!opt.raw) text=flusterize(text,embLevel(EMB.v));
   // the player's own thoughts for this level take their turn on idle thoughts
-  if(kind==='idle' && (!opt.text || LVTH.mode==='replace')){ const c=customThought(embLevel(EMB.v)); if(c) text=c; }
+  if(kind==='idle' && (!opt.text || LVTH.mode==='replace')){ const c=customThought(embLevel(EMB.v)); if(c){ text=c; custom=true; } }
   // at 100% her mind goes blank: nothing left but a long sigh (or the player's own level-10 lines)
   if(atMax()){ const c=customThought(10); text=c||maxThought(); }
   lastThought=text; lastThoughtAt=now;
