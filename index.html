@@ -268,6 +268,15 @@ body.fs .bubble{font-size:15px}
 body.covered{overflow:hidden}
 body:not(.covered) .cover{display:none}
 
+/* shyness 10 arrival: the screen shakes, she jolts up in a full-body startle with a "!!", then freezes */
+.stage.shake10 #canvas>svg{animation:shake10 .5s linear}
+@keyframes shake10{0%,100%{transform:translate(0,0)}10%{transform:translate(-6px,3px)}20%{transform:translate(6px,-4px)}30%{transform:translate(-5px,-3px)}40%{transform:translate(5px,4px)}50%{transform:translate(-4px,2px)}60%{transform:translate(4px,-2px)}70%{transform:translate(-3px,1px)}80%{transform:translate(2px,-1px)}90%{transform:translate(-1px,1px)}}
+.stage.startle10 .hopper{animation:startle10 .55s cubic-bezier(.2,.9,.3,1)}
+@keyframes startle10{0%{transform:scale(1,1)}10%{transform:translateY(4px) scale(1.04,.94)}35%{transform:translateY(-46px) scale(.96,1.05)}70%{transform:translateY(0) scale(1.04,.95)}85%{transform:translateY(-4px)}100%{transform:scale(1,1)}}
+.stage .bang10{opacity:0;transform-box:fill-box;transform-origin:center bottom}
+.stage.startle10 .bang10{animation:bang10 1.5s ease-out}
+@keyframes bang10{0%{opacity:0;transform:scale(.3) rotate(-8deg)}12%{opacity:1;transform:scale(1.25) rotate(6deg)}22%{transform:scale(1) rotate(0)}75%{opacity:1}100%{opacity:0;transform:scale(1) translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.stage.shake10 #canvas>svg,.stage.startle10 .hopper,.stage.startle10 .bang10{animation:none}}
 /* shyness 10: halo + one light burst ("mind gone blank") */
 .stage .halo10{opacity:var(--s-halo,0)}
 .stage .burst10{opacity:0;transform-box:fill-box;transform-origin:center}
@@ -599,6 +608,7 @@ const FLOOR_Y=566, PROP_LIFT_MAX=220;
 let propCalmE=0;
 function propDancePeriod(lv){ return .70*Math.pow(Math.max(1,lv),-.33); }   // matches her bob tempo per level
 // shyness 10 visuals: a soft golden halo over the head (raw head coordinates) and a burst of light behind her
+const BANG_SVG=`<g class="bang10"><text x="214" y="60" font-family="Mitr, sans-serif" font-size="44" font-weight="500" fill="#e2475f" stroke="#fff" stroke-width="5" paint-order="stroke" transform="rotate(12 214 60)">!!</text></g>`;
 const HALO_SVG=`<g class="halo10"><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#ffd36b" stroke-width="3.2" opacity=".9"/><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#fff6d6" stroke-width="1.1"/></g>`;
 const BURST_SVG=`<g class="burst10"><circle cx="150" cy="190" r="120" fill="#fff4cf" opacity=".55"/>${Array.from({length:16},(_,i)=>{ const a=i/16*Math.PI*2, r1=70, r2=i%2?190:240; return `<path d="M${(150+Math.cos(a)*r1).toFixed(1)} ${(190+Math.sin(a)*r1).toFixed(1)} L${(150+Math.cos(a+.05)*r2).toFixed(1)} ${(190+Math.sin(a+.05)*r2).toFixed(1)} L${(150+Math.cos(a-.05)*r2).toFixed(1)} ${(190+Math.sin(a-.05)*r2).toFixed(1)} Z" fill="#ffe7a1" opacity=".7"/>`; }).join('')}</g>`;
 function drawProps(){
@@ -2549,7 +2559,7 @@ function render(state=S){
   hd+=`<g style="opacity:var(--s-sweat,0)"><path d="M196 74 Q203 86 199 92 Q194 96 191 90 Q189 84 196 74 Z" fill="#cfe9fb" stroke="#8cc3e8" stroke-width="1.4"/><path d="M194 86 Q193 89 195 90" stroke="#fff" stroke-width="1.4" fill="none"/></g>`;
   { const drop=(x,y,k)=>`<path d="M${x} ${y} Q${x+7*k} ${y+12*k} ${x+3*k} ${y+18*k} Q${x-2*k} ${y+22*k} ${x-5*k} ${y+16*k} Q${x-7*k} ${y+10*k} ${x} ${y} Z" fill="#cfe9fb" stroke="#8cc3e8" stroke-width="1.3"/><path d="M${x-2*k} ${y+12*k} Q${x-3*k} ${y+15*k} ${x-1*k} ${y+16*k}" stroke="#fff" stroke-width="1.2" fill="none"/>`;
     hd+=`<g class="sweat2" style="opacity:var(--s-sweat2,0)"><g class="sw a">${drop(104,70,.9)}</g><g class="sw b">${drop(182,46,.7)}</g><g class="sw c">${drop(208,100,.6)}</g><g class="sw d">${drop(96,104,.55)}</g></g>`; }
-  g+=`<g class="bow"><g class="head"><g transform="${HT}">${hd}${live?HALO_SVG:''}</g></g></g>`;
+  g+=`<g class="bow"><g class="head"><g transform="${HT}">${hd}${live?HALO_SVG+BANG_SVG:''}</g></g></g>`;
   const zig=(x,y,r)=>`<path d="M0 -6 L3 -3 L-3 0 L3 3 L0 6" transform="translate(${x} ${y}) rotate(${r})" stroke="#5a4552" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
   g+=`<g class="flusterfx"><g class="fx a">${zig(108,158,-16)}${zig(101,168,-8)}</g><g class="fx b">${zig(192,158,16)}${zig(199,168,8)}</g><g class="fx c">${zig(102,258,-6)}${zig(98,268,-4)}</g><g class="fx d">${zig(198,258,6)}${zig(202,268,4)}</g></g>`;
   // racing heart over the centre of her left breast (viewer's right), riding along with the body
@@ -3236,7 +3246,9 @@ let kneelE=0;
   kneelE=e;
   { // shyness 10: a sob hitch every 2 s — shoulders and head jerk up quickly, then sink back
     const at10=atMax();
-    if(at10 && !was10){ sobT0=t+350; st.classList.remove('burst-on'); void st.offsetWidth; st.classList.add('burst-on'); clearTimeout(burstTm); burstTm=setTimeout(()=>st.classList.remove('burst-on'),1300); }
+    if(at10 && !was10){ sobT0=t+900;
+      st.classList.remove('burst-on','shake10','startle10'); void st.offsetWidth; st.classList.add('burst-on','shake10','startle10');
+      clearTimeout(burstTm); burstTm=setTimeout(()=>st.classList.remove('burst-on','shake10','startle10'),1600); }
     was10=at10; haloE+=((at10?1:0)-haloE)*.04; if(haloE<.003 && !at10) haloE=0;
     st.style.setProperty('--s-halo',haloE.toFixed(3));
     let sob=0;
