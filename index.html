@@ -3249,6 +3249,8 @@ let kneelE=0;
     if(at10 && !was10){ sobT0=t+900;
       st.classList.remove('burst-on','shake10','startle10'); void st.offsetWidth; st.classList.add('burst-on','shake10','startle10');
       clearTimeout(burstTm); burstTm=setTimeout(()=>st.classList.remove('burst-on','shake10','startle10'),1600); }
+    // coming down from 10: the heart kicks off again
+    if(was10 && !at10) setTimeout(()=>think('event',{text:'อ๊ะ! เอาอีกแล้วหรอ!?',force:true,raw:true}),250);
     was10=at10; haloE+=((at10?1:0)-haloE)*.04; if(haloE<.003 && !at10) haloE=0;
     st.style.setProperty('--s-halo',haloE.toFixed(3));
     let sob=0;
