@@ -3684,7 +3684,7 @@ let hipHold=0, holdSide=1, skLastT=0, hipPhase=0, hipLastT=0, hipAmp=0, lastHipF
 // knees sit at y≈400 when standing; kneeling drops the figure so the knees reach the floor, and hides what's below them
 const KNEEL_DROP=159;
 let rainE=0, rainShown='';
-let floatK=0, floatLvShown=0, floatSide=1, pantE=0, pantShown=false, was10=false, sobT0=0, haloE=0, burstTm=0, shakeTms=[], sobShown='';
+let floatK=1, floatLvShown=1, floatSide=1, pantE=0, pantShown=false, was10=false, sobT0=0, haloE=0, burstTm=0, shakeTms=[], sobShown='';
 const FLOAT_RISE=18;   // a low hover: just enough to clear the floor and show the shoes
 // floating altitude above the base height: target, current position, speed (spring-damper)
 let floatAltT=0, altPos=0, altV=0, altLastT=0, altDir=1, pAlt=0, pAltV=0, ldPos=0, ldV=0, lagT=.12;
@@ -3769,7 +3769,7 @@ let kneelE=0;
       st.style.setProperty('--pant',v.toFixed(2)); pantShown=pantE>0; } }
   // floating: rise smoothly to the chosen height and bob gently there
   // floating (fantasy, levels 1–5): rise to the level's height, hang from the middle of the body and lean
-  const FL=+S.floatLv||0;
+  const FL=1;   // she always floats now
   if(FL>0 && floatK<.02) floatSide=Math.random()<.5?-1:1;
   floatLvShown += (FL-floatLvShown)*.035; if(Math.abs(floatLvShown-FL)<.002) floatLvShown=FL;
   floatK += ((FL>0?1:0)-floatK)*.035; if(Math.abs(floatK-(FL>0?1:0))<.001) floatK=FL>0?1:0;
@@ -4412,14 +4412,14 @@ const FLOAT_AURA=`<g class="floatfx" style="opacity:0"><radialGradient id="faura
   <ellipse class="maura" cx="150" cy="330" rx="120" ry="250" fill="url(#faura)"/></g>`;
 const FLOAT_FRONT=`<g class="floatfx" style="opacity:0;pointer-events:none">${[[78,480,.3],[222,440,1.5],[110,390,2.4],[200,290,.8],[150,210,2.9]].map(([x,y,d],i)=>`<circle class="fspark" style="animation-delay:-${d}s" cx="${x}" cy="${y}" r="${i%2?1.6:2.2}" fill="#fffbe6"/>`).join('')}</g>`;
 const FLOAT_TH=['เอ๊ะ!? ตัว… ลอยได้ด้วยเหรอ','เท้าไม่แตะพื้นเลย… แปลกจัง','ร่างนี้… มีพลังวิเศษด้วยเหรอเนี่ย','ประกายวิบวับรอบตัวเลย…','ถ้ามีใครเห็นตอนนี้… คงตกใจแย่','ลอยอยู่กลางอากาศ… ไม่กล้ามองลงไปเลย','ตัวเบาหวิว… เหมือนไม่มีน้ำหนัก','วงเวทใต้เท้าเรืองแสงด้วย… จริงเหรอเนี่ย'];
-const floating=()=>(+S.floatLv||0)>0;
+const floating=()=>true;   // the old standing pose is gone: she always floats
 if(S.float && S.floatLv==null) S.floatLv=1; delete S.float; delete S.floatAuto; delete S.floatSpeed; delete S.legJ; delete S.legSync;
-if((+S.floatLv||0)>1) S.floatLv=1;       // floating is simply on (1) or off (0)
+S.floatLv=1;
 function floatRow(){
   const r=$('floatRow'); if(!r) return;
   const on=floating();
   r.style.flexWrap='wrap';
-  r.innerHTML=`<button class="btn small ${on?'primary':''}" data-floatlv="${on?0:1}" aria-pressed="${on}">${on?'✨ กำลังลอยอยู่ · แตะเพื่อลงพื้น':'✨ ลอยตัว (แฟนตาซี)'}</button>`+(on?altHTML():'');
+  r.innerHTML=altHTML();
   if(on && typeof enhanceInputs==='function') enhanceInputs(r);
 }
 // floating shyness: the shyness level (0–10) is how restless she is in the air. At 0 she just hovers;
