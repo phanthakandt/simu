@@ -761,13 +761,15 @@ function propsControls(){
       +`<span class="pat-row" style="margin-top:6px"><button class="pat ${p.dance?'on':''}" data-propdance="${i}">💃 โหมดเต้นระบำ${p.dance?' · เปิด':''}</button></span>${p.dance?`<small style="display:block;color:var(--muted)">ขยับขึ้นลงนำหน้าตัวละครนิดหน่อย ความเร็วตามระดับความเขิน (นิ่งที่ 0 และ 10) · ทุกชิ้นที่เปิดโหมดนี้เต้นจังหวะเดียวกัน</small>`:''}
       ${sl('x','ตำแหน่ง (ซ้าย ← → ขวา)',10,290,x)}
       <span class="mini-label">สี</span><span class="swatches mini">${T.cols.map(([cc,n])=>`<button class="sw ${cc===c?'on':''}" style="background:${cc}" data-propc="${i}" data-c="${cc}" aria-label="${n}" title="${n}"></button>`).join('')}<label class="sw propcpick" title="เลือกสีเอง" style="background:conic-gradient(red,#ff0,lime,cyan,blue,#f0f,red);position:relative;overflow:hidden"><input type="color" value="${c}" data-propcin="${i}" aria-label="เลือกสีเองได้ทุกเฉด" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;border:0;padding:0;cursor:pointer"></label></span></span>
-      <button class="btn small" data-propdel="${i}">ลบ</button></div>`; });
+      <span style="display:flex;flex-direction:column;gap:6px"><button class="btn small" data-propdup="${i}" title="ทำซ้ำชิ้นนี้">⧉ ทำซ้ำ</button><button class="btn small" data-propdel="${i}">ลบ</button></span></div>`; });
   h+=`</div><div class="pat-row" style="margin:8px 0 4px">${Object.entries(PROP_TYPES).map(([k,T])=>`<button class="pat" data-propadd="${k}">+ ${T.ic} ${T.name}</button>`).join('')}</div>`;
   return h;
 }
 document.addEventListener('click',ev=>{
   const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]'), fr=ev.target.closest('[data-propfront]');
-  const hd=ev.target.closest('[data-prophide]'), od=ev.target.closest('[data-propord]');
+  const hd=ev.target.closest('[data-prophide]'), od=ev.target.closest('[data-propord]'), du=ev.target.closest('[data-propdup]');
+  // duplicate: an exact copy placed right after the original (just in front of it), nudged a little to the side so it shows
+  if(du){ const ps=S.props||[], i=+du.dataset.propdup, q=ps[i]; if(q){ const n=clone(q), x=+q.x||60; n.x=x+18<=290?x+18:Math.max(10,x-18); ps.splice(i+1,0,n); toast('ทำซ้ำ'+(PROP_TYPES[q.type]?.name||'')+'แล้ว'); } update(); return; }
   const sk=ev.target.closest('[data-propstk]'), skc=ev.target.closest('[data-propstkc]');
   if(sk||skc){ const p=(S.props||[])[+(sk||skc).dataset[sk?'propstk':'propstkc']]; if(p){ if(sk) p.stk=sk.dataset.v; else p.stkC=skc.dataset.c; } update(); return; }
   if(!a&&!d&&!c&&!dn&&!fr&&!hd&&!od) return;
