@@ -255,6 +255,9 @@ body.fs .fsbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10
 body.fs .fsbar{justify-content:center}
 body.fs .fsbar .slider{flex:1 1 140px;min-width:0;max-width:440px}
 @media (min-width:701px){ body.fs .bubble{left:calc(50% + 40px);max-width:300px} }
+body.fs .fstf{flex-basis:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.fstf .tfform{padding:6px 12px;font-size:13px}
+.fstf:empty{display:none}
 body.fs .fsword{flex-basis:100%;text-align:center;font-size:12px;color:var(--muted)}
 body.fs .bubble{font-size:15px}
 
@@ -418,7 +421,7 @@ body:not(.covered) .cover{display:none}
     </div>
   </header>
 
-  <div class="stage" id="stage"><button class="fsbtn" id="fsBtn" aria-label="ดูตัวละครเต็มจอ" title="ดูเต็มจอ"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div id="canvas"></div><div class="fsbar" id="fsBar"><button class="btn small" data-fsadd="-10" aria-label="ลดความเขิน 1 ระดับ">−1</button><input type="range" id="fsV" class="slider" min="0" max="10" step="1" value="6" aria-label="ระดับความเขิน"><button class="btn small" data-fsadd="10" aria-label="เพิ่มความเขิน 1 ระดับ">+1</button><span class="fsword" id="fsWord"></span></div><div class="bubble" id="bubble" aria-live="polite"></div><div class="wear-tag" id="wearTag"></div></div>
+  <div class="stage" id="stage"><button class="fsbtn" id="fsBtn" aria-label="ดูตัวละครเต็มจอ" title="ดูเต็มจอ"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div id="canvas"></div><div class="fsbar" id="fsBar"><button class="btn small" data-fsadd="-10" aria-label="ลดความเขิน 1 ระดับ">−1</button><input type="range" id="fsV" class="slider" min="0" max="10" step="1" value="6" aria-label="ระดับความเขิน"><button class="btn small" data-fsadd="10" aria-label="เพิ่มความเขิน 1 ระดับ">+1</button><span class="fsword" id="fsWord"></span><div class="fstf" id="fsTf"></div></div><div class="bubble" id="bubble" aria-live="polite"></div><div class="wear-tag" id="wearTag"></div></div>
 
   <div class="panel">
     <div id="hud" hidden></div>
@@ -2922,7 +2925,15 @@ function swatchHTML(colors, cur, key){
   return `<div class="swatches">${colors.map(c=>`<button class="sw ${c===cur?'on':''}" style="background:${c}" data-color="${key}" data-c="${c}" aria-label="สี ${c}"></button>`).join('')}</div>`;
 }
 
-function renderPanel(){
+// full screen: the transformation buttons (tap a form to transform or switch, ↩ to change back)
+function fsTfRow(){
+  const r=$('fsTf'); if(!r || typeof tfForms!=='function') return;
+  if(S.tfEdit!=null){ r.innerHTML=''; return; }
+  const F=tfForms();
+  r.innerHTML=F.map((f,i)=>`<button class="tfform ${S.tfOn===i?'on':''}" data-tfgo="${i}"${tfBusy?' disabled':''}>${S.tfOn===i?'✨ ':''}${tfEsc(f.name)}${f.emo?' '+tfEsc(f.emo):''}</button>`).join('')
+    +(S.tfOn!=null?`<button class="tfform" data-tf="back"${tfBusy?' disabled':''}>↩ คืนร่าง</button>`:'');
+}
+function renderPanel(){ try{ fsTfRow(); }catch(e){}
   $('hud').innerHTML=hudHTML();
   $('wearTag').innerHTML = S.wDress ? `${cloth(S.wDress).ic} ใส่: ${wornNames().join(' + ')}` : (S.wTop||S.wBottom) ? `${S.wTop?cloth(S.wTop).ic:'👙'} ใส่: ${wornNames().join(' + ')}${!S.wBottom?' + กางเกงใน':''}` : '👙 ใส่แค่ชุดชั้นใน';
   $('tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab ${k===tab?'on':''}" data-tab="${k}">${n}</button>`).join('');
