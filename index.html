@@ -3109,7 +3109,7 @@ setInterval(()=>{ if(S.tfOn!=null && !tfBusy && S.tfEdit==null && tfLvNow()>8) t
 function tfEditStart(i){
   if(tfBusy || S.tfOn!=null) { toast('คืนร่างก่อนถึงจะแต่งชุดแปลงร่างได้'); return; }
   const F=tfForms(); S.tfHold=outfitOf(S); S.tfEdit=i; applyOutfit(F[i].o); update();
-  toast('แต่งชุดของ '+F[i].name+' ได้เลย เสร็จแล้วกด ✔');
+  toast('แต่งชุดของ '+F[i].name+' ได้เลย เสร็จแล้วกด 💾 บันทึกร่าง');
 }
 function tfEditDone(){
   const F=tfForms(), i=S.tfEdit; if(i==null) return;
@@ -3121,22 +3121,21 @@ function tfControls(){
   const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
   let h=`<div class="tfbox"><div class="sec-title">✨ แปลงร่าง</div>`;
   if(S.tfEdit!=null){
-    h+=`<div class="banner">✏️ กำลังแต่งชุดของ ${F[S.tfEdit]?.name||''} · แต่งตัวด้านล่างได้เลย <button class="btn small primary" data-tf="done">✔ เสร็จแล้ว</button></div></div>`;
+    h+=`<div class="banner">✏️ กำลังแต่งชุดของ ${F[S.tfEdit]?.name||''} · แต่งต่อด้านล่างได้เลย <button class="btn small primary" data-tf="done">💾 บันทึกร่าง</button> <button class="btn small" data-tf="cancel">ยกเลิก</button></div>`;
+    // start from a saved look, then keep editing freely
+    if(looks.length) h+=`<div class="mini-label">เริ่มจากลุคที่เก็บไว้ (แตะแล้วแก้ต่อได้)</div><div class="looks tfpick">${looks.map((l,i)=>`<button class="look" data-tfpick="${i}" title="ใช้ลุคนี้แล้วแก้ต่อ">${render(l)}</button>`).join('')}</div>`;
+    return h+`</div>`;
     return h;
   }
   h+=`<div class="tfrow">${F.map((f,i)=>`<button class="pat ${i===sel?'on':''}" data-tfsel="${i}">${S.tfOn===i?'✨ ':''}${f.name}</button>`).join('')}<button class="pat" data-tf="add">+ เพิ่มร่าง</button></div>`;
   h+=`<div class="tfrow">`+(S.tfOn==null
       ? `<button class="btn tf" data-tf="go"${tfBusy?' disabled':''}>✨ แปลงร่าง</button>`
       : `<button class="btn" data-tf="back"${tfBusy?' disabled':''}>↩ คืนร่าง</button>`)
-    +`<button class="btn small" data-tf="edit">✏️ แต่งชุด${F[sel].name}</button><button class="btn small${tfPickOpen?' primary':''}" data-tf="pick">📂 ใช้ลุคที่เก็บไว้</button>${F.length>1?`<button class="btn small" data-tf="del">ลบร่างนี้</button>`:''}</div>`;
+    +`<button class="btn small" data-tf="edit">✏️ แต่งชุด${F[sel].name}</button>${F.length>1?`<button class="btn small" data-tf="del">ลบร่างนี้</button>`:''}</div>`;
   // the emoji that floats up when you tap her while she is in this form
   const emo=F[sel].emo||'';
   h+=`<div class="tfrow"><span class="mini-label" style="margin:0">อิโมจิลอยของ${F[sel].name}</span>${TF_EMOJI.map(e=>`<button class="pat ${e===emo?'on':''}" data-tfemo="${e}" aria-label="${e||'หัวใจ (ค่าเริ่มต้น)'}">${e||'❤ เดิม'}</button>`).join('')}`
     +`<input class="numbox" style="width:58px!important" maxlength="8" placeholder="อื่นๆ" value="${(TF_EMOJI.includes(emo)?'':emo).replace(/[&"<>]/g,c=>({'&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]))}" data-tfemoin="1" aria-label="พิมพ์อิโมจิเอง"></div>`;
-  // saved looks: tap one to make it this form's outfit
-  if(tfPickOpen) h+= looks.length
-    ? `<div class="mini-label">แตะลุคเพื่อใช้เป็นชุดของ ${F[sel].name}</div><div class="looks tfpick">${looks.map((l,i)=>`<button class="look" data-tfpick="${i}" title="ใช้ลุคนี้">${render(l)}</button>`).join('')}</div>`
-    : `<div class="hint">ยังไม่มีลุคที่เก็บไว้ แต่งตัวแล้วกด ♡ เก็บลุคนี้ ก่อนนะ</div>`;
   h+=`<small style="color:var(--muted)">แปลงร่างได้ตอนความเขิน 0 เท่านั้น · ถ้าเขินเกินระดับ 8 ชุดแปลงร่างจะทนไม่ไหวและคืนร่างเอง</small></div>`;
   return h;
 }
@@ -3144,18 +3143,16 @@ document.addEventListener('click',ev=>{
   const em=ev.target.closest('[data-tfemo]');
   if(em){ const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0)); F[sel].emo=em.dataset.tfemo; persist(); renderPanel(); return; }
   const pk=ev.target.closest('[data-tfpick]');
-  if(pk){ const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0)), l=looks[+pk.dataset.tfpick]; if(!l) return;
-    F[sel].o=outfitOf(l); tfPickOpen=false;
-    if(S.tfOn===sel && !tfBusy){ applyOutfit(F[sel].o); update(); } else { persist(); renderPanel(); }   // already in this form: put the new outfit on now
-    toast('ตั้งชุดของ '+F[sel].name+' จากลุคที่เก็บไว้แล้ว'); return; }
+  if(pk){ const l=looks[+pk.dataset.tfpick]; if(!l || S.tfEdit==null) return;
+    applyOutfit(outfitOf(l)); update(); toast('ใส่ลุคแล้ว แก้ต่อได้เลย เสร็จแล้วกด 💾 บันทึกร่าง'); return; }
   const b=ev.target.closest('[data-tf],[data-tfsel]'); if(!b) return;
   if(b.dataset.tfsel!=null){ S.tfSel=+b.dataset.tfsel; persist(); renderPanel(); return; }
   const a=b.dataset.tf, F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
   if(a==='go') tfTransform();
   if(a==='back') tfRevert(false);
   if(a==='edit') tfEditStart(sel);
-  if(a==='pick'){ tfPickOpen=!tfPickOpen; renderPanel(); return; }
   if(a==='done') tfEditDone();
+  if(a==='cancel' && S.tfEdit!=null){ const hold=S.tfHold; S.tfEdit=null; S.tfHold=null; applyOutfit(hold); update(); toast('ยกเลิกการแต่งชุดแปลงร่าง'); }
   if(a==='add'){ F.push(tfDefaultForm(F.length+1)); S.tfSel=F.length-1; persist(); renderPanel(); }
   if(a==='del' && F.length>1 && S.tfOn==null){ F.splice(sel,1); S.tfSel=Math.max(0,sel-1); persist(); renderPanel(); }
 });
@@ -3175,6 +3172,7 @@ $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
   const l=ev.target.closest('[data-load]');
+  if(l && S.tfEdit!=null){ applyOutfit(outfitOf(looks[+l.dataset.load])); update(); toast('ใส่ลุคแล้ว แก้ต่อได้เลย'); return; }   // editing a form: only the outfit changes, keep editing
   if(l){ const keep=floatKeep(); S=clone(looks[+l.dataset.load]); Object.assign(S,keep); update(); toast('ใส่ลุคที่เก็บไว้แล้ว'); }
 });
 
