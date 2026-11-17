@@ -304,6 +304,20 @@ body:not(.covered) .cover{display:none}
 @keyframes maura{0%,100%{opacity:.55}50%{opacity:.9}}
 @media (prefers-reduced-motion:reduce){.stage .fspark,.stage .mcircle,.stage .maura{animation:none}}
 
+/* transformation: she turns into a white glowing silhouette, the outfit changes, the light fades */
+.stage .tfglow,.stage .tfburst{opacity:0;transition:opacity .55s ease;pointer-events:none}
+.stage.tf-white .tfglow,.stage.tf-white .tfburst{opacity:1}
+.stage .tfrays{transform-box:view-box;transform-origin:150px 150px;animation:tfspin 6s linear infinite}
+@keyframes tfspin{to{transform:rotate(360deg)}}
+/* twinkles all round her once the light has gone */
+.stage .tfspark{transform-box:fill-box;transform-origin:center;opacity:0;animation:tfspark 1s ease-in-out 2 both;pointer-events:none}
+@keyframes tfspark{0%{opacity:0;transform:scale(.2) rotate(0deg)}40%{opacity:1;transform:scale(1.15) rotate(25deg)}100%{opacity:0;transform:scale(.3) rotate(60deg)}}
+@media (prefers-reduced-motion:reduce){.stage .tfrays,.stage .tfspark{animation:none}}
+.tfbox{margin:0 0 12px;padding:4px 12px 10px;border-radius:16px;background:linear-gradient(135deg,#fff6fb,#f3eefe)}
+.tfbox .sec-title{margin-top:8px}
+.tfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.btn.tf{background:linear-gradient(135deg,#f7a8c8,#b79cf2);border-color:transparent;color:#fff}
+.btn.tf:disabled{opacity:.45}
 /* per-level thought editor */
 .lvth{text-align:left}
 .lvth .lv-chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 10px}
@@ -2050,8 +2064,9 @@ function patternGeom(P,d){
   const hline=y=>{ let s=`M${f(x0)} ${f(y)}`; for(let x=x0+STEP;x<=x1;x+=STEP) s+=` L${f(x)} ${f(y)}`; return s; };
   const lines=(fn,from,to,step,off)=>{ let s=''; for(let v=from+off;v<=to;v+=step) s+=fn(v)+' '; return s; };
   switch(P.type){
-    case 'dots': { // one path of zero-length round-capped strokes = dots, cheap to bend every frame
-      let g=''; const dot=(x,y)=>` M${f(x)} ${f(y)} L${f(x)} ${f(y)}`;
+    case 'dots': { // one path of very short round-capped strokes = dots, cheap to bend every frame
+      // (not zero-length: Safari on iPhone draws nothing for a zero-length stroke)
+      let g=''; const dot=(x,y)=>` M${f(x)} ${f(y)} L${f(x+.06)} ${f(y)}`;
       for(let y=y0;y<=y1;y+=sp) for(let x=x0;x<=x1;x+=sp) g+=dot(x+sp/4,y+sp/4)+dot(x+sp*3/4,y+sp*3/4);
       return `<path d="${g}" stroke="${c}" stroke-width="${f(sz)}" stroke-linecap="round" fill="none"/>`; }
     case 'vstripe': return `<path d="${lines(vline,x0,x1,sp,sz/2)}" stroke="${c}" stroke-width="${sz}" fill="none"/>`;
@@ -2086,11 +2101,17 @@ function patternControls(slot){
   return h;
 }
 const setPat=(slot,obj)=>{ S[patKey(slot)]=Object.assign(patOf(slot),obj); };
+function patContrast(slot){
+  const id=slot==='top'?S.wTop:slot==='dress'?S.wDress:S.wBottom, it=id&&cloth(id);
+  const g=(slot==='top'?S.wTopC:slot==='dress'?S.wDressC:S.wBottomC)||(it&&it.c)||'#ffffff';
+  return lum(g)>150?'#23202a':'#ffffff';
+}
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-pat]'); if(!b || b.tagName==='INPUT') return;
   const slot=b.dataset.pat;
-  if(b.dataset.ptype) setPat(slot,{type:b.dataset.ptype});
-  if(b.dataset.pcol) setPat(slot,{c:b.dataset.pcol});
+  // first time a pattern is picked, give it a colour that shows up on the garment (the default white vanished on white tops)
+  if(b.dataset.ptype) setPat(slot, (S[patKey(slot)]||{}).cSet ? {type:b.dataset.ptype} : {type:b.dataset.ptype, c:patContrast(slot)});
+  if(b.dataset.pcol) setPat(slot,{c:b.dataset.pcol, cSet:true});
   update();
 });
 document.addEventListener('input',ev=>{
@@ -2819,6 +2840,7 @@ function renderPanel(){
   if(tab==='out'){ h+=`<div class="sec-title">ภารกิจข้างนอก · ทำแล้วจะคุ้นเคยกับร่างนี้เร็วขึ้น</div>`+actsHTML('out'); }
   if(tab==='job'){ h+=`<div class="sec-title">หางานหาเงิน · งานที่ใช้หน้าตามากจะปลดล็อกเมื่อคุ้นเคยกับร่างมากพอ</div>`+actsHTML('job'); }
   if(tab==='face'){
+    h+=tfControls();
     h+=hairListHTML();
     h+=`<div class="sec-title">สีผิว</div><div class="swatches">${Object.entries(SKINS).map(([k,c])=>`<button class="sw ${k===S.skin?'on':''}" style="background:${c}" data-skin="${k}" aria-label="สีผิว"></button>`).join('')}</div>`;
     h+=`<div class="sec-title">สีชุดพื้นฐาน</div>`+swatchHTML(CLOTH,S.suitC||'#5d6b8a','suitC');
@@ -2933,7 +2955,138 @@ $('stage').addEventListener('click',e=>{
 });
 $('stage').addEventListener('animationend',e=>{ if(e.animationName==='hop') $('stage').classList.remove('hop'); });
 $('btnReset').onclick=()=>{ const keep=floatKeep(); S=clone(DEFAULT); Object.assign(S,keep); update(); toast('กลับไปลุคเริ่มต้น'); };
-function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown, props:S.props, legSpread:S.legSpread}; }
+function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown, props:S.props, legSpread:S.legSpread, forms:S.forms}; }
+
+/* ---------- transformation (magical-girl style) ----------
+   Forms are outfits saved apart from what she is wearing. Transform only when she is completely calm (shyness 0):
+   she calls out, glows white, the outfit swaps under the light, the light fades. A form can't take shyness above 8:
+   past that it breaks and she is back in what she wore before, stammering. */
+const TF_SKIP=new Set(['skin','eye','lip','expr','bg','props','floatLv','floatUp','floatDown','floatSpeed','floatAuto','legSpread','legSync','legJ',
+  'bodyNeck','bodyTorso','bodyArm','bodyThigh','bodyShin','forms','tfOn','tfPre','tfEdit','tfHold','tfSel']);
+function outfitOf(st){ const o={}; for(const k of Object.keys(st)) if(!TF_SKIP.has(k)) o[k]=clone(st[k]); return o; }
+function applyOutfit(o){
+  for(const k of Object.keys(S)) if(!TF_SKIP.has(k)) delete S[k];
+  for(const k of Object.keys(DEFAULT)) if(!TF_SKIP.has(k)) S[k]=clone(DEFAULT[k]);
+  Object.assign(S,clone(o||{}));
+}
+// the first form: a magical-girl set over whatever hair and accessories she has now
+function tfDefaultForm(n){
+  return {name:'ร่างที่ '+n, o:Object.assign(outfitOf(S),{wTop:'puffshirt',wTopC:'#ffffff',wBottom:'boxpleat',wBottomC:'#d6627c',tuck:true,wDress:null,wOuter:null,
+    wSocks:'socks_knee',wSocksC:'#ffffff',wShoes:'pumps',wShoesC:'#d6627c',wEyes:null,wMask:null})};
+}
+function tfForms(){ if(!Array.isArray(S.forms)||!S.forms.length) S.forms=[tfDefaultForm(1)]; return S.forms; }
+const tfLvNow=()=>embLevel(EMB.v);
+let tfBusy=false;
+// the glow: a copy of her drawn on top of her through an SVG filter that turns every pixel white with a
+// soft golden halo; fading the copy in and out is just opacity, which every browser animates (CSS filters on SVG parts
+// don't work in Safari)
+function tfGlow(on){
+  const svg=$('canvas').querySelector('svg'); if(!svg) return;
+  let u=svg.querySelector('.tfglow');
+  if(!on){ if(u) u.remove(); const bb=svg.querySelector('.tfburst'); if(bb) bb.remove(); return; }
+  if(u) return;
+  const fig=svg.querySelector('.fig'); if(!fig) return;
+  fig.id='figmain';
+  if(!svg.querySelector('#tfWhiteF')){
+    const d=document.createElementNS('http://www.w3.org/2000/svg','defs');
+    d.innerHTML=`<filter id="tfWhiteF" x="-40%" y="-25%" width="180%" height="150%" color-interpolation-filters="sRGB">
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0" result="w"/>
+      <feGaussianBlur in="w" stdDeviation="3" result="b1"/><feGaussianBlur in="w" stdDeviation="9" result="b2"/>
+      <feColorMatrix in="b2" type="matrix" values="0 0 0 0 1  0 0 0 0 .9  0 0 0 0 .6  0 0 0 1.4 0" result="gold"/>
+      <feMerge><feMergeNode in="gold"/><feMergeNode in="b1"/><feMergeNode in="w"/></feMerge></filter>`;
+    svg.insertBefore(d,svg.firstChild);
+  }
+  // a column of light behind her that reaches well above her head, with slowly turning rays
+  if(!svg.querySelector('.tfburst')){
+    const bg=document.createElementNS('http://www.w3.org/2000/svg','g'); bg.setAttribute('class','tfburst');
+    bg.innerHTML=`<ellipse cx="150" cy="250" rx="125" ry="330" fill="#fff6d8" opacity=".55"/><ellipse cx="150" cy="230" rx="78" ry="300" fill="#ffffff" opacity=".6"/>`
+      +`<g class="tfrays">${Array.from({length:18},(_,i)=>{ const a=i/18*Math.PI*2, r1=40, r2=i%2?260:330;
+        return `<path d="M${(150+Math.cos(a)*r1).toFixed(1)} ${(150+Math.sin(a)*r1).toFixed(1)} L${(150+Math.cos(a+.045)*r2).toFixed(1)} ${(150+Math.sin(a+.045)*r2).toFixed(1)} L${(150+Math.cos(a-.045)*r2).toFixed(1)} ${(150+Math.sin(a-.045)*r2).toFixed(1)} Z" fill="#ffe9a8" opacity=".55"/>`; }).join('')}</g>`;
+    fig.parentNode.insertBefore(bg,fig);
+  }
+  // a snapshot copy of her, minus the bits that are hidden right now (effects, marks waiting for their moment)
+  const cp=fig.cloneNode(true); cp.removeAttribute('id');
+  const src=fig.querySelectorAll('*'), dst=cp.querySelectorAll('*'), drop=[];
+  src.forEach((el,i)=>{ const cs=getComputedStyle(el); if(cs.display==='none'||cs.visibility==='hidden'||+cs.opacity===0) drop.push(dst[i]); });
+  drop.forEach(el=>el.remove());
+  u=document.createElementNS('http://www.w3.org/2000/svg','g');
+  u.setAttribute('class','tfglow'); u.setAttribute('filter','url(#tfWhiteF)'); u.appendChild(cp);
+  fig.parentNode.insertBefore(u,fig.nextSibling);
+}
+// four-point twinkles scattered round her silhouette, each popping a couple of times
+function tfSparkle(){
+  const svg=$('canvas').querySelector('svg'); if(!svg) return;
+  const pts=[[150,22,1.3,0],[108,70,1,.15],[194,96,1.1,.35],[96,170,.9,.05],[206,210,1.2,.25],[104,268,1,.45],[198,318,.9,.1],[112,392,1.1,.3],
+    [190,446,1,.5],[118,512,.9,.2],[184,548,1.1,.4],[132,120,.7,.55],[170,260,.7,.6],[140,430,.7,.65]];
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.setAttribute('class','tfsparks');
+  g.innerHTML=pts.map(([x,y,k,dl])=>`<g transform="translate(${x} ${y}) scale(${k})"><g class="tfspark" style="animation-delay:${dl}s"><path d="M0 -8 Q1.2 -1.2 8 0 Q1.2 1.2 0 8 Q-1.2 1.2 -8 0 Q-1.2 -1.2 0 -8 Z" fill="#fffbe6" stroke="#ffd36b" stroke-width=".8"/><circle r="1.6" fill="#ffffff"/></g></g>`).join('');
+  svg.appendChild(g);
+  setTimeout(()=>g.remove(),3000);
+}
+// the screen shakes (same shake as reaching shyness 10)
+function tfShake(){ const st=$('stage'); st.classList.remove('shake10'); void st.offsetWidth; st.classList.add('shake10'); clearTimeout(tfShake.t); tfShake.t=setTimeout(()=>st.classList.remove('shake10'),550); }
+function tfRun(o,{say,raw}={}){
+  tfBusy=true; const st=$('stage');
+  if(say){ think('event',{text:say,force:true,raw:!!raw,keep:true}); BUBBLE_HOLD=Date.now()+2600; }   // nothing talks over the call/shout
+  setTimeout(()=>{ tfGlow(true); void st.offsetWidth; st.classList.add('tf-white'); tfShake(); },380);
+  setTimeout(()=>{ applyOutfit(o); update(); tfGlow(true); tfShake(); },1250);   // redrawn in the new outfit: put the glow straight back
+  setTimeout(()=>{ st.classList.remove('tf-white'); },1700);
+  setTimeout(()=>{ tfSparkle(); },2050);
+  setTimeout(()=>{ tfGlow(false); },2350);
+  setTimeout(()=>{ tfBusy=false; renderPanel(); },2500);
+}
+function tfTransform(){
+  const F=tfForms(), i=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
+  if(tfBusy || S.tfEdit!=null) return;
+  if(S.tfOn!=null){ toast('แปลงร่างอยู่แล้ว'); return; }
+  if(tfLvNow()!==0){ toast('ต้องใจเย็นสนิท (ความเขิน 0) ถึงจะแปลงร่างได้'); return; }
+  S.tfPre=outfitOf(S); const pre=S.tfPre;
+  tfRun(F[i].o,{say:'แปลงร่าง!!'});
+  setTimeout(()=>{ S.tfOn=i; S.tfPre=pre; persist(); renderPanel(); },1300);
+}
+function tfRevert(forced){
+  if(tfBusy || S.tfOn==null) return;
+  const pre=S.tfPre;
+  tfRun(pre,forced?{say:'ม...ไม่... ม-ไม่น้... ไม่น้าาาา!!',raw:true}:{});
+  setTimeout(()=>{ S.tfOn=null; S.tfPre=null; persist(); renderPanel(); },1300);
+}
+// too shy for the form to hold
+setInterval(()=>{ if(S.tfOn!=null && !tfBusy && S.tfEdit==null && tfLvNow()>8) tfRevert(true); },250);
+function tfEditStart(i){
+  if(tfBusy || S.tfOn!=null) { toast('คืนร่างก่อนถึงจะแต่งชุดแปลงร่างได้'); return; }
+  const F=tfForms(); S.tfHold=outfitOf(S); S.tfEdit=i; applyOutfit(F[i].o); update();
+  toast('แต่งชุดของ '+F[i].name+' ได้เลย เสร็จแล้วกด ✔');
+}
+function tfEditDone(){
+  const F=tfForms(), i=S.tfEdit; if(i==null) return;
+  const hold=S.tfHold; F[i].o=outfitOf(S); S.tfEdit=null; S.tfHold=null; applyOutfit(hold); update(); toast('บันทึกชุดแปลงร่างแล้ว');
+}
+function tfControls(){
+  const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
+  let h=`<div class="tfbox"><div class="sec-title">✨ แปลงร่าง</div>`;
+  if(S.tfEdit!=null){
+    h+=`<div class="banner">✏️ กำลังแต่งชุดของ ${F[S.tfEdit]?.name||''} · แต่งตัวด้านล่างได้เลย <button class="btn small primary" data-tf="done">✔ เสร็จแล้ว</button></div></div>`;
+    return h;
+  }
+  h+=`<div class="tfrow">${F.map((f,i)=>`<button class="pat ${i===sel?'on':''}" data-tfsel="${i}">${S.tfOn===i?'✨ ':''}${f.name}</button>`).join('')}<button class="pat" data-tf="add">+ เพิ่มร่าง</button></div>`;
+  h+=`<div class="tfrow">`+(S.tfOn==null
+      ? `<button class="btn tf" data-tf="go"${tfBusy?' disabled':''}>✨ แปลงร่าง</button>`
+      : `<button class="btn" data-tf="back"${tfBusy?' disabled':''}>↩ คืนร่าง</button>`)
+    +`<button class="btn small" data-tf="edit">✏️ แต่งชุด${F[sel].name}</button>${F.length>1?`<button class="btn small" data-tf="del">ลบร่างนี้</button>`:''}</div>`;
+  h+=`<small style="color:var(--muted)">แปลงร่างได้ตอนความเขิน 0 เท่านั้น · ถ้าเขินเกินระดับ 8 ชุดแปลงร่างจะทนไม่ไหวและคืนร่างเอง</small></div>`;
+  return h;
+}
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-tf],[data-tfsel]'); if(!b) return;
+  if(b.dataset.tfsel!=null){ S.tfSel=+b.dataset.tfsel; persist(); renderPanel(); return; }
+  const a=b.dataset.tf, F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
+  if(a==='go') tfTransform();
+  if(a==='back') tfRevert(false);
+  if(a==='edit') tfEditStart(sel);
+  if(a==='done') tfEditDone();
+  if(a==='add'){ F.push(tfDefaultForm(F.length+1)); S.tfSel=F.length-1; persist(); renderPanel(); }
+  if(a==='del' && F.length>1 && S.tfOn==null){ F.splice(sel,1); S.tfSel=Math.max(0,sel-1); persist(); renderPanel(); }
+});
 
 /* ---------- saved looks ---------- */
 let looks=[];
@@ -2945,7 +3098,7 @@ function renderLooks(){
     : `<div class="empty">ยังไม่มีลุคที่เก็บไว้ กด ♡ เก็บลุคนี้ เมื่อแต่งได้ถูกใจ</div>`;
   $('looks').querySelectorAll('.look').forEach((el,i)=>{ const sv=el.querySelector('svg'); if(sv && looks[i]) bodyStatic(sv,looks[i]); });
 }
-$('btnSave').onclick=()=>{ const lk=clone(S); delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; delete lk.props;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
+$('btnSave').onclick=()=>{ const lk=clone(S); for(const k of ['forms','tfOn','tfPre','tfEdit','tfHold','tfSel']) delete lk[k]; delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; delete lk.props;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
 $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
@@ -4290,7 +4443,9 @@ function think(kind, opt={}){
   store('dressup_mind',MIND);
   renderMind();
 }
+let BUBBLE_HOLD=0;
 function showBubble(text){
+  if(Date.now()<BUBBLE_HOLD) return;
   const b=$('bubble');
   b.textContent=text;
   b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
