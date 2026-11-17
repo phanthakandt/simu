@@ -1356,6 +1356,7 @@ const CLOTHES=[
   {id:'tubetop',slot:'top',ic:'🎀',name:'เสื้อเกาะอก',cover:26,price:0,c:'#b23a48',wearTh:'ไม่มีสายเลยสักเส้น... ต้องเชื่อใจยางยืดอย่างเดียว'},
   {id:'cutout',slot:'top',ic:'💠',name:'เสื้อเว้า',cover:20,price:0,c:'#23202a',wearTh:'เสื้อรัดรูปเว้าข้างเอวลึกขนาดนี้... เอวคอดโชว์ชัดเลย แถมยังมีรูโชว์ตรงหน้าอกอีก'},
   {id:'miniskirt',slot:'bottom',ic:'🖤',name:'กระโปรงเข้ารูป',cover:28,price:0,c:'#23202a',wearTh:'กระโปรงเข้ารูปแนบสะโพก... ต้องหนีบขาไว้ตลอด แล้วก็คอยดึงชายลง'},
+  {id:'y2kskirt',slot:'bottom',ic:'💿',name:'กระโปรงยีนส์ Y2K',cover:27,price:0,c:'#a9c4e4',wearTh:'กระโปรงยีนส์สั้นมีกระเป๋าหน้า... เหมือนหลุดมาจากรูปยุค 2000 เลย'},
   {id:'slitskirt',slot:'bottom',ic:'🔻',name:'กระโปรงเข้ารูปผ่าข้าง',cover:25,price:0,c:'#2a3550',wearTh:'ผ่าแค่นิดเดียว แต่ก้าวขาทีไรต้นขาโผล่ทุกที'},
   {id:'boxpleat',slot:'bottom',ic:'🎐',name:'กระโปรงพลีท',cover:24,price:0,c:'#3f5f93',defLen:DEF_LEN,pleat:{type:'knife',n:12,f:28},wearTh:'กระโปรงบานพลิ้ว... ลมพัดทีต้องรีบเอามือกด แต่มือดันไขว้หลังอยู่นี่สิ'},
   {id:'yokepleat',slot:'bottom',ic:'🎀',name:'กระโปรงทรงเอต่อชายพลีท',cover:24,price:0,c:'#2a3550',defLen:DEF_LEN+6,pleat:{type:'box',n:8,f:20},wearTh:'ข้างบนเรียบทรงเอ ข้างล่างเป็นจีบ... กระโปรงแบบนี้ใส่แล้วดูเป็นผู้หญิงน่ารักเกินไปไหมนะ'},
@@ -1524,7 +1525,83 @@ function drawSkirt(c,slit){
   } else g+=`<path d="M${(hl+.8).toFixed(2)} ${hem-3.4} Q150 ${hem} ${(300-hl-.8).toFixed(2)} ${hem-3.4}" stroke="${e}" stroke-width=".8" fill="none" stroke-dasharray="2 1.6" opacity=".6"/>`;
   return g;
 }
-const COVER_FN={miniskirt:skirtCover,slitskirt:()=>Math.max(4,skirtCover()-1-slitH(skirtLen())/7),boxpleat:()=>Math.max(4,skirtCover()-2),pleat_knife:()=>Math.max(4,skirtCover()-2),pleat_wide:()=>Math.max(4,skirtCover()-2),pleat_accordion:()=>Math.max(4,skirtCover()-3),pleat_tennis:()=>Math.max(4,skirtCover()-4),aline:()=>Math.max(4,skirtCover()-1),glitter:skirtCover,alinenb:()=>Math.max(4,skirtCover()-1)};
+// Y2K denim skirt: the fitted skirt's shape plus jeans details — belt loops, a button on the waistband,
+// a zip down the front under a stitched fly flap, front pockets on each thigh and a double-stitched hem
+function drawY2KSkirt(c){
+  const e=edge(c), band=shade(c,-.1), dk=shade(c,-.22), st='#d9a441', hem=skirtLen(), hl=legOuterX(hem)-1.2;
+  let g=`<path d="${skirtPath(hem,false)}" fill="${c}" stroke="${e}" stroke-width="1.1" stroke-linejoin="round"/>`;
+  // side seams curving round the hips, like the yoke on jeans
+  g+=`<path d="M131.4 236 Q140 241 147 239.6 M168.6 236 Q160 241 153 239.6" stroke="${st}" stroke-width=".7" fill="none" stroke-dasharray="1.6 1.2" opacity=".75"/>`;
+  // waistband with topstitching, belt loops and the button
+  g+=`<path d="M129.6 216 L170.4 216 L170.9 223.6 L129.1 223.6 Z" fill="${band}" stroke="${e}" stroke-width="1"/>`;
+  g+=`<path d="M130.4 217.6 L169.6 217.6 M130 222.2 L170 222.2" stroke="${st}" stroke-width=".6" stroke-dasharray="1.5 1.1" opacity=".8"/>`;
+  for(const x of [134.2,165.8]) g+=`<path d="M${x-1.5} 215 L${x+1.5} 215 L${x+1.5} 225 L${x-1.5} 225 Z" fill="${shade(c,-.04)}" stroke="${e}" stroke-width=".8"/>`;
+  g+=`<circle cx="150" cy="219.8" r="2.3" fill="#c9ccd1" stroke="#8d9097" stroke-width=".7"/><circle cx="150" cy="219.8" r=".8" fill="#8d9097"/>`;
+  // zip down the centre front, and the fly flap stitched over it with the classic J-curve
+  const zb=Math.min(hem-10,262);
+  g+=`<path d="M150 223.6 L150 ${zb}" stroke="${dk}" stroke-width="1.1"/>`;
+  g+=`<path d="M150 223.6 L150 ${zb}" stroke="#c9ccd1" stroke-width=".7" stroke-dasharray=".6 .9" opacity=".9"/>`;
+  g+=`<path d="M150 223.6 L156.2 223.6 L156.2 ${zb-6} Q156.2 ${zb} 150 ${zb+1.2} Z" fill="${shade(c,-.02)}" stroke="${e}" stroke-width=".8" opacity=".95"/>`;
+  g+=`<path d="M154.4 225 L154.4 ${zb-6.4} Q154.2 ${zb-1.6} 150 ${zb-.6}" stroke="${st}" stroke-width=".6" fill="none" stroke-dasharray="1.5 1.1" opacity=".85"/>`;
+  g+=`<rect x="148.4" y="224.4" width="3.2" height="4.4" rx=".8" fill="#c9ccd1" stroke="#8d9097" stroke-width=".5"/>`;
+  // centre front seam from the bottom of the fly down to the hem, topstitched on both sides
+  if(hem-4>zb+1.2){ const y0=(zb+1.2).toFixed(2), y1=(hem-.6).toFixed(2);
+    g+=`<path d="M150 ${y0} L150 ${y1}" stroke="${e}" stroke-width=".9" opacity=".8"/>`;
+    g+=`<path d="M148.6 ${y0} L148.6 ${(hem-4.6).toFixed(2)} M151.4 ${y0} L151.4 ${(hem-4.6).toFixed(2)}" stroke="${st}" stroke-width=".6" stroke-dasharray="1.5 1.1" opacity=".8"/>`; }
+  // front pockets
+  g+=skirtPockets(c,hem,st);
+  // double-stitched hem
+  g+=`<path d="M${(hl+.8).toFixed(2)} ${hem-3.4} Q150 ${hem} ${(300-hl-.8).toFixed(2)} ${hem-3.4} M${(hl+.9).toFixed(2)} ${hem-5.6} Q150 ${hem-2.2} ${(300-hl-.9).toFixed(2)} ${hem-5.6}" stroke="${st}" stroke-width=".6" fill="none" stroke-dasharray="1.6 1.2" opacity=".8"/>`;
+  return g;
+}
+// Y2K-style front pockets on each thigh: a plain patch pocket, or one with a pointed flap and a button
+const SKIRT_POCKETS=[['none','ไม่มี'],['patch','กระเป๋าแปะ'],['flap','กระเป๋ามีฝา']];
+// how far apart the two pockets sit: each one slides this many units away from the centre (negative = closer)
+const POCKET_D_MIN=0;   // 0 = as close as they go without covering the fly
+// smaller pockets leave more room on the thigh, so they can slide further out
+const pocketDMax=()=>+(6+(1-pocketK())*19.8).toFixed(1);
+const pocketD=()=>Math.max(POCKET_D_MIN,Math.min(pocketDMax(),S.pocketGap==null?.75:+S.pocketGap));   // default: 5 cm apart
+const pocketGapCm=()=>(2*(150-143.2+pocketD())*CM_PER_UNIT).toFixed(1);
+function skirtPockets(c,hem,stitch){
+  const k=S.skirtPocket||'flap'; if(k==='none') return '';
+  const T=246, B=Math.min(hem-7,286), q=pocketK(); if(B-T<14) return '';
+  const e=edge(c), dk=shade(c,-.14), hi=stitch||shade(c,.16);
+  let g='';
+  const d=pocketD(), IX=143.2;
+  // the pocket is drawn at full size, then shrunk towards its inner top corner (so the gap to the centre stays put)
+  const Y=y=>(T+(y-T)*q).toFixed(2);
+  for(const sgn of [1,-1]){ const X=x=>(150+sgn*(IX+(x-IX)*q-d-150)).toFixed(2);
+    const body=`M${X(123.4)} ${Y(T)} L${X(143.2)} ${Y(T)} L${X(142.6)} ${Y(B-4)} Q${X(142.4)} ${Y(B)} ${X(138.6)} ${Y(B)} L${X(128)} ${Y(B)} Q${X(124.2)} ${Y(B)} ${X(124)} ${Y(B-4)} Z`;
+    g+=`<path d="${body}" fill="${c}" stroke="${e}" stroke-width="1"/>`;
+    g+=`<path d="M${X(125.4)} ${Y(T+1.6)} L${X(141.2)} ${Y(T+1.6)} L${X(140.7)} ${Y(B-4.4)} Q${X(140.5)} ${Y(B-1.8)} ${X(137.8)} ${Y(B-1.8)} L${X(128.8)} ${Y(B-1.8)} Q${X(126.2)} ${Y(B-1.8)} ${X(126)} ${Y(B-4.4)} Z" stroke="${hi}" stroke-width=".7" fill="none" stroke-dasharray="1.8 1.4" opacity=".75"/>`;
+    g+=`<path d="M${X(124)} ${Y(B-3)} Q${X(133)} ${Y(B+.6)} ${X(142.6)} ${Y(B-3)}" stroke="${dk}" stroke-width="1.4" fill="none" opacity=".35"/>`;
+    if(k==='flap'){
+      const fl=`M${X(122.8)} ${Y(T-1.2)} L${X(143.8)} ${Y(T-1.2)} L${X(143.4)} ${Y(T+6)} L${X(133.3)} ${Y(T+10)} L${X(123.2)} ${Y(T+6)} Z`;
+      g+=`<path d="${fl}" fill="${shade(c,-.05)}" stroke="${e}" stroke-width="1"/>`;
+      g+=`<path d="M${X(124.6)} ${Y(T+.4)} L${X(142)} ${Y(T+.4)} L${X(141.7)} ${Y(T+5)} L${X(133.3)} ${Y(T+8.2)} L${X(124.9)} ${Y(T+5)} Z" stroke="${hi}" stroke-width=".6" fill="none" stroke-dasharray="1.6 1.3" opacity=".7"/>`;
+      g+=`<circle cx="${X(133.3)}" cy="${Y(T+6.4)}" r="${(1.7*Math.max(.75,q)).toFixed(2)}" fill="${shade(c,-.32)}" stroke="${shade(c,.25)}" stroke-width=".5"/>`;
+    } else {
+      g+=`<path d="M${X(123.4)} ${Y(T)} L${X(143.2)} ${Y(T)}" stroke="${dk}" stroke-width="1.2" opacity=".5"/>`;
+    }
+  }
+  return g;
+}
+// pocket size, % of the full pocket
+const POCKET_K_MIN=50, POCKET_K_MAX=100;
+const pocketK=()=>Math.max(POCKET_K_MIN,Math.min(POCKET_K_MAX,S.pocketSize==null?80:+S.pocketSize))/100;
+function pocketControls(){
+  const k=S.skirtPocket||'flap';
+  return `<span class="mini-label">กระเป๋าหน้าขา</span><span class="pat-row">${SKIRT_POCKETS.map(([v,n])=>`<button class="pat ${k===v?'on':''}" data-spocket="${v}">${n}</button>`).join('')}</span>`
+    +(k==='none'?'':`<span class="len-row"><span>ขนาดกระเป๋า</span><input type="range" class="slider" min="${POCKET_K_MIN}" max="${POCKET_K_MAX}" step="1" value="${Math.round(pocketK()*100)}" data-spsize="1" aria-label="ขนาดกระเป๋า"><b class="pv">${Math.round(pocketK()*100)}%</b></span>`
+      +`<span class="len-row"><span>ระยะห่างกระเป๋า</span><input type="range" class="slider" min="${POCKET_D_MIN}" max="${pocketDMax()}" step=".25" value="${pocketD()}" data-spgap="1" aria-label="ระยะห่างระหว่างกระเป๋า"><b class="pv">${pocketGapCm()} ซม.</b></span>`);
+}
+document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-spsize]'); if(!r) return;
+  S.pocketSize=+r.value; const v=r.parentElement.querySelector('.pv'); if(v) v.textContent=Math.round(pocketK()*100)+'%'; paintCanvas(); persist(); });
+document.addEventListener('change',ev=>{ if(ev.target.closest('[data-spsize]')) renderPanel(); });
+document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-spgap]'); if(!r) return;
+  S.pocketGap=+r.value; const v=r.parentElement.querySelector('.pv'); if(v) v.textContent=pocketGapCm()+' ซม.'; paintCanvas(); persist(); });
+document.addEventListener('click',ev=>{ const b=ev.target.closest('[data-spocket]'); if(!b) return; S.skirtPocket=b.dataset.spocket; update(); });
+const COVER_FN={miniskirt:skirtCover,y2kskirt:skirtCover,slitskirt:()=>Math.max(4,skirtCover()-1-slitH(skirtLen())/7),boxpleat:()=>Math.max(4,skirtCover()-2),pleat_knife:()=>Math.max(4,skirtCover()-2),pleat_wide:()=>Math.max(4,skirtCover()-2),pleat_accordion:()=>Math.max(4,skirtCover()-3),pleat_tennis:()=>Math.max(4,skirtCover()-4),aline:()=>Math.max(4,skirtCover()-1),glitter:skirtCover,alinenb:()=>Math.max(4,skirtCover()-1)};
 const coverOf=id=>COVER_FN[id]?COVER_FN[id]():cloth(id).cover;
 
 // belt: strap + buckle colours separately. Tight = sits at the natural waist.
@@ -2498,7 +2575,7 @@ function outerControls(id){
 }
 document.addEventListener('click',ev=>{ const b=ev.target.closest('[data-oopen]'); if(!b) return;
   const k=S.wOuter==='cardigan'?'cardiOpen':'blazerOpen'; S[k]=b.dataset.oopen==='1'; update(); });
-const CLOTH_DRAW={yokepleat:drawYokePleat,tritube:drawTriTube,offshoulder:drawOffShoulder,oversize:drawOversize,oversizeshirt:c=>drawOversizeShirt(c,false),oversizeshirt_long:c=>drawOversizeShirt(c,true),cami:drawCami,tubetop:drawTubeTop,cutout:drawCutout,tee:c=>drawTee(c,false),crop:c=>drawTee(c,true),shirt:c=>drawShirt(c,false),longshirt:c=>drawShirt(c,false,false,true),puffshirt:c=>drawShirt(c,true),uni:c=>drawShirt(c,false,true),miniskirt:c=>drawSkirt(c,false),slitskirt:c=>drawSkirt(c,true),boxpleat:drawPleated,boxpleat_low:c=>drawPleated(c,LOW_WAIST),pleat_knife:drawPleated,pleat_wide:drawPleated,pleat_accordion:drawPleated,pleat_tennis:drawPleated,aline:c=>drawAline(c,false),glitter:drawGlitter,slipdress:drawSlipDress,qipao:drawQipao,alinenb:c=>drawAline(c,true),sneakers:drawSneakers,pumps:drawPumps,heels:drawHeels};
+const CLOTH_DRAW={y2kskirt:drawY2KSkirt,yokepleat:drawYokePleat,tritube:drawTriTube,offshoulder:drawOffShoulder,oversize:drawOversize,oversizeshirt:c=>drawOversizeShirt(c,false),oversizeshirt_long:c=>drawOversizeShirt(c,true),cami:drawCami,tubetop:drawTubeTop,cutout:drawCutout,tee:c=>drawTee(c,false),crop:c=>drawTee(c,true),shirt:c=>drawShirt(c,false),longshirt:c=>drawShirt(c,false,false,true),puffshirt:c=>drawShirt(c,true),uni:c=>drawShirt(c,false,true),miniskirt:c=>drawSkirt(c,false),slitskirt:c=>drawSkirt(c,true),boxpleat:drawPleated,boxpleat_low:c=>drawPleated(c,LOW_WAIST),pleat_knife:drawPleated,pleat_wide:drawPleated,pleat_accordion:drawPleated,pleat_tennis:drawPleated,aline:c=>drawAline(c,false),glitter:drawGlitter,slipdress:drawSlipDress,qipao:drawQipao,alinenb:c=>drawAline(c,true),sneakers:drawSneakers,pumps:drawPumps,heels:drawHeels};
 
 /* ---------- kneeling legs ---------- */
 // Drawn in on-screen coordinates for the fully knelt pose; faded in as she sinks down.
@@ -2840,7 +2917,7 @@ function outfitExposure(){
   if(S.wOuter && typeof cloth==='function' && cloth(S.wOuter)) x -= cloth(S.wOuter).cover;
   if(S.wSocks && typeof cloth==='function' && cloth(S.wSocks)) x -= ({socks_ankle:.5,socks_crew:1.5,socks_knee:3})[S.wSocks]||0;
   // a short skirt feels far more exposed than its fabric suggests: every cm above ~45 cm adds embarrassment
-  if(((S.wBottom && ['miniskirt','slitskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(S.wBottom)) || S.wDress) && typeof skirtLen==='function'){
+  if(((S.wBottom && ['miniskirt','slitskirt','y2kskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(S.wBottom)) || S.wDress) && typeof skirtLen==='function'){
     const cm=lenToCm(skirtLen());
     x += Math.max(0,Math.min(38,(46-cm)*1.2));
   }
@@ -2947,9 +3024,9 @@ function foldPoint(x,y,e){
   return [x, KNEE_Y+(y-KNEE_Y)*(1-e*KNEEL_DROP/(LEG_END-KNEE_Y))];
 }
 // ---------- cloth flow: skirts trail behind the hips and ripple ----------
-const FLOW_BOTTOM={yokepleat:1,boxpleat:1,boxpleat_low:1,pleat_knife:1,pleat_wide:1,pleat_accordion:.9,pleat_tennis:1.1,aline:.4,miniskirt:.25,slitskirt:.3};
+const FLOW_BOTTOM={yokepleat:1,boxpleat:1,boxpleat_low:1,pleat_knife:1,pleat_wide:1,pleat_accordion:.9,pleat_tennis:1.1,aline:.4,miniskirt:.25,slitskirt:.3,y2kskirt:.22};
 // how much the cloth ripples: pleats ripple, smooth skirts only swing as one piece
-function rippleFactor(slot){ const id=slot==='bottom'?S.wBottom:S.wDress; if(id==='aline'||id==='miniskirt'||id==='slitskirt'||id==='qipao') return 0; if(id==='glitter') return S.glitShape==='aline'?.15:0; if(id==='slipdress') return (S.dressSkirt||'aline')==='flare'?.6:0; return 1; }
+function rippleFactor(slot){ const id=slot==='bottom'?S.wBottom:S.wDress; if(id==='aline'||id==='miniskirt'||id==='slitskirt'||id==='y2kskirt'||id==='qipao') return 0; if(id==='glitter') return S.glitShape==='aline'?.15:0; if(id==='slipdress') return (S.dressSkirt||'aline')==='flare'?.6:0; return 1; }
 function flowFactor(slot){
   if(slot==='bottom'){ const id=S.wBottom; if(id==='glitter') return S.glitShape==='aline'?.8:.25; return FLOW_BOTTOM[id]||0; }
   if(slot==='dress'){ if(S.wDress==='qipao') return .2; if(S.wDress==='slipdress'){ const st=S.dressSkirt||'aline'; return st==='flare'?1.1:st==='aline'?.85:.3; } }
@@ -3668,6 +3745,11 @@ const WORRY=[
     ['ยาวแล้วแต่ก็ยังไม่ชินกับการใส่กระโปรงอยู่ดี'],
     ['ทำไมยังเขินอยู่ได้ ทั้งที่ปิดเกือบหมดแล้ว'],
     ['ไม่ใช่เพราะชุดหรอก... ร่างนี้ทั้งร่างมันทำให้เขินไปหมด']]},
+  {when:c=>c.bottomId==='y2kskirt', w:2, t:[
+    ['กระโปรงยีนส์ทรงนี้ใส่แล้วรู้สึกเหมือนอยู่ในมิวสิกวิดีโอยุค 2000'],
+    ['กระเป๋าหน้ามีไว้ใส่อะไรได้จริงเหรอ... หรือแค่ไว้สวย'],
+    ['ผ้ายีนส์แข็งๆ แนบสะโพกจนก้าวขายาวๆ ไม่ได้เลย'],
+    ['ซิบหน้ามันรูดลงเองหรือเปล่านะ... ต้องคอยเช็กตลอด']]},
   {when:c=>c.bottomId==='slitskirt', w:2, t:[
     ['รอยผ่าเล็กๆ นี่เก๋ดีนะ'],
     ['ขยับขาทีไรต้นขาโผล่ออกมาจากรอยผ่าทุกที'],
@@ -3844,7 +3926,7 @@ const WORRY=[
     ['ขาสั่นไปหมด หนีบไว้แน่นแค่ไหนก็ไม่หายเขิน']]}
 ];
 function worryCtx(){
-  const skirt=['miniskirt','slitskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(S.wBottom) || !!S.wDress;
+  const skirt=['miniskirt','slitskirt','y2kskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(S.wBottom) || !!S.wDress;
   return {
     top:!!(S.wTop||S.wDress), bottom:!!(S.wBottom||S.wDress), bare:!S.wTop&&!S.wBottom&&!S.wDress, dress:S.wDress,
     topId:S.wTop, bottomId:S.wBottom, skirt, cm: skirt ? lenToCm(skirtLen()) : 0,
@@ -4548,7 +4630,7 @@ function wardrobeHTML(){
     h+=`<div class="wardrobe">`+items.map(x=>{
       const own=MIND.owned.includes(x.id), on=S[slotKey[slot]]===x.id;
       return `<div class="wear ${on?'on':''}"><span class="wear-ic">${x.ic}</span>
-        <span class="wear-body"><b>${x.name}</b>${on&&x.slot==='belt'?beltControls():''}${on&&(['miniskirt','slitskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(x.id)||x.slot==='dress')?`<span class="len-row"><span>ความยาว</span><input type="number" min="${SKIRT_CM_MIN}" max="${SKIRT_CM_MAX}" step="1" value="${lenToCm(skirtLen())}" data-len="1" aria-label="ความยาวกระโปรง (ซม.)"><span>ซม.</span><b id="lenWord">${skirtWord()}</b><small class="len-range">(${SKIRT_CM_MIN}–${SKIRT_CM_MAX})</small></span>`:''}${on&&x.slot!=='belt'?`<span class="swatches mini">${CLOTH.map(c=>`<button class="sw ${c===(S[colKey[slot]]||x.c)?'on':''}" style="background:${c}" data-color="${colKey[slot]}" data-c="${c}" aria-label="สี"></button>`).join('')}</span>`:''}${on&&slot==='bottom'?bandControls():''}${on&&x.id==='uni'?uniControls():''}${on&&TIE_TOPS.includes(x.id)?tieControls():''}${on&&x.id==='glitter'?glitControls():''}${on&&x.id==='slitskirt'?slitControls():''}${on&&x.id==='pumps'?pumpControls():''}${on&&x.id==='heels'?heelControls():''}${on&&x.slot==='socks'?sockControls():''}${on&&(x.id==='cardigan'||x.id==='blazer')?outerControls(x.id):''}${on&&x.id==='puffer'?pufferControls():''}${on&&x.id==='yokepleat'?yokeControls():''}${on&&x.pleat?pleatControls():''}${on&&x.id==='slipdress'?dressControls()+hemControls():''}${on&&x.id==='qipao'?qipaoControls():''}${on&&(slot==='top'||slot==='bottom'||slot==='dress')?patternControls(slot):''}</span>
+        <span class="wear-body"><b>${x.name}</b>${on&&x.slot==='belt'?beltControls():''}${on&&(['miniskirt','slitskirt','y2kskirt','boxpleat','boxpleat_low','yokepleat','aline','alinenb','pleat_knife','pleat_wide','pleat_accordion','pleat_tennis','glitter'].includes(x.id)||x.slot==='dress')?`<span class="len-row"><span>ความยาว</span><input type="number" min="${SKIRT_CM_MIN}" max="${SKIRT_CM_MAX}" step="1" value="${lenToCm(skirtLen())}" data-len="1" aria-label="ความยาวกระโปรง (ซม.)"><span>ซม.</span><b id="lenWord">${skirtWord()}</b><small class="len-range">(${SKIRT_CM_MIN}–${SKIRT_CM_MAX})</small></span>`:''}${on&&x.slot!=='belt'?`<span class="swatches mini">${CLOTH.map(c=>`<button class="sw ${c===(S[colKey[slot]]||x.c)?'on':''}" style="background:${c}" data-color="${colKey[slot]}" data-c="${c}" aria-label="สี"></button>`).join('')}</span>`:''}${on&&slot==='bottom'?bandControls():''}${on&&x.id==='uni'?uniControls():''}${on&&TIE_TOPS.includes(x.id)?tieControls():''}${on&&x.id==='glitter'?glitControls():''}${on&&x.id==='slitskirt'?slitControls():''}${on&&x.id==='y2kskirt'?pocketControls():''}${on&&x.id==='pumps'?pumpControls():''}${on&&x.id==='heels'?heelControls():''}${on&&x.slot==='socks'?sockControls():''}${on&&(x.id==='cardigan'||x.id==='blazer')?outerControls(x.id):''}${on&&x.id==='puffer'?pufferControls():''}${on&&x.id==='yokepleat'?yokeControls():''}${on&&x.pleat?pleatControls():''}${on&&x.id==='slipdress'?dressControls()+hemControls():''}${on&&x.id==='qipao'?qipaoControls():''}${on&&(slot==='top'||slot==='bottom'||slot==='dress')?patternControls(slot):''}</span>
         ${own?(on?`<button class="btn small" data-takeoff="${slot}">ถอด</button>`:`<button class="btn small" data-put="${x.id}">ใส่</button>`)
              :`<button class="btn small" data-buy="${x.id}" ${MIND.money<x.price?'disabled':''}>ซื้อ ${x.price.toLocaleString('th-TH')} ฿</button>`}
       </div>`;}).join('')+`</div>`;
