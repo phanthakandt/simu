@@ -631,7 +631,9 @@ function bodyStatic(root,st){
 /* ---------- props: scene pieces that always stand behind her ----------
    Each prop: {id, type, x (centre, 0–300), h (height from the floor), c (colour)}. Starts with a staff/pole. */
 const PROP_TYPES={
-  pole:{name:'ไม้พลอง',ic:'🪵',hMin:40,hMax:520,hDef:330,cols:[['#a8743f','ไม้'],['#6b4428','ไม้เข้ม'],['#e2c48f','ไม้อ่อน'],['#2b2b33','ดำ'],['#b9bec7','เงิน'],['#c23d5a','แดง']]}
+  pole:{name:'ไม้พลอง',ic:'🪵',hMin:40,hMax:520,hDef:330,cols:[['#a8743f','ไม้'],['#6b4428','ไม้เข้ม'],['#e2c48f','ไม้อ่อน'],['#2b2b33','ดำ'],['#b9bec7','เงิน'],['#c23d5a','แดง']]},
+  // a ball: size is its diameter; it rests on the floor or hangs in the air, and dances to the same beat as the pole
+  ball:{name:'ลูกบอล',ic:'🔮',dMin:8,dMax:140,dDef:44,liftDef:90,liftMax:480,cols:[['#e8577a','ชมพู'],['#f2c45a','เหลือง'],['#6fb6e8','ฟ้า'],['#8fd3a4','เขียว'],['#b9a2d6','ม่วง'],['#ffffff','ขาว'],['#2b2b33','ดำ']]}
 };
 const FLOOR_Y=566, PROP_LIFT_MAX=220;
 /* dancing props: they bob with the shyness level (1–9; still at 0 and 10), always a little AHEAD of her —
@@ -654,11 +656,26 @@ const BANG_SVG=`<g class="bang10"><text x="214" y="60" font-family="Mitr, sans-s
 const HALO_SVG=`<g class="halo10"><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#ffd36b" stroke-width="3.2" opacity=".9"/><ellipse cx="150" cy="8" rx="30" ry="7.5" fill="none" stroke="#fff6d6" stroke-width="1.1"/></g>`;
 const BURST_SVG=`<g class="burst10"><circle cx="150" cy="190" r="120" fill="#fff4cf" opacity=".55"/>${Array.from({length:16},(_,i)=>{ const a=i/16*Math.PI*2, r1=70, r2=i%2?190:240; return `<path d="M${(150+Math.cos(a)*r1).toFixed(1)} ${(190+Math.sin(a)*r1).toFixed(1)} L${(150+Math.cos(a+.05)*r2).toFixed(1)} ${(190+Math.sin(a+.05)*r2).toFixed(1)} L${(150+Math.cos(a-.05)*r2).toFixed(1)} ${(190+Math.sin(a-.05)*r2).toFixed(1)} Z" fill="#ffe7a1" opacity=".7"/>`; }).join('')}</g>`;
 const PROP_W_MIN=3, PROP_W_MAX=40, PROP_W_DEF=7;
+// which layer a prop sits on: 'back' (behind her), 'front' (over her body, under her clothes), 'top' (over everything)
+// stickers on a ball: drawn for a ball of radius 20, centred on 0,0 (scaled to the ball). Flat, one colour.
+const BALL_STK=[['','ไม่มี'],['x','✕ กากบาท'],['heart','♥ หัวใจ'],['star','★ ดาว'],['smile','☺ หน้ายิ้ม'],['note','♪ โน้ต'],['dot','● จุด']];
+function ballSticker(k,col){
+  const sw='stroke="'+col+'" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  if(k==='x') return `<path d="M-7 -7 L7 7 M7 -7 L-7 7" ${sw} stroke-width="3.6"/>`;
+  if(k==='heart') return `<path d="M0 8.5 C-9 2 -10.5 -3 -8 -6.3 C-5.6 -9.2 -1.8 -8.2 0 -5 C1.8 -8.2 5.6 -9.2 8 -6.3 C10.5 -3 9 2 0 8.5 Z" fill="${col}"/>`;
+  if(k==='star') return `<path d="${Array.from({length:10},(_,i)=>{ const a=-Math.PI/2+i*Math.PI/5, r=i%2?4.2:10; return (i?'L':'M')+(Math.cos(a)*r).toFixed(2)+' '+(Math.sin(a)*r+.8).toFixed(2); }).join(' ')} Z" fill="${col}"/>`;
+  if(k==='smile') return `<circle cx="-5" cy="-3.5" r="2" fill="${col}"/><circle cx="5" cy="-3.5" r="2" fill="${col}"/><path d="M-6.5 3 Q0 9.5 6.5 3" ${sw} stroke-width="2.4"/>`;
+  if(k==='note') return `<path d="M3.5 -9 L3.5 5" ${sw} stroke-width="2.4"/><path d="M3.5 -9 Q8 -7 9 -3" ${sw} stroke-width="2.2"/><ellipse cx="-.6" cy="5.4" rx="4.6" ry="3.5" fill="${col}" transform="rotate(-20 -.6 5.4)"/>`;
+  if(k==='dot') return `<circle r="6" fill="${col}"/>`;
+  return '';
+}
+const propLayer=p=>p.layer||(p.front?'front':'back');
+const PROP_LAYERS=[['back','หลังตัวละคร'],['front','หน้าตัว (ใต้เสื้อผ้า)'],['top','หน้าสุด']];
 function drawProps(layer){
   const ps=Array.isArray(S.props)?S.props:[];
   return ps.map((p,i)=>{
     const T=PROP_TYPES[p.type]; if(!T) return '';
-    if(!!p.front!==(layer==='front') || p.hidden) return '';
+    if(propLayer(p)!==(layer||'back') || p.hidden) return '';
     const x=Math.max(10,Math.min(290,+p.x||60)), h=Math.max(T.hMin,Math.min(T.hMax,+p.h||T.hDef)), c=p.c||T.cols[0][0], e=edge(c);
     const lift=Math.max(0,Math.min(PROP_LIFT_MAX,+p.lift||0));
     if(p.type==='pole'){
@@ -669,6 +686,12 @@ function drawProps(layer){
         <rect x="${x-w/2+w*.17}" y="${top+3}" width="${w*.23}" height="${Math.max(0,h-6)}" rx="${w*.11}" fill="${hi}" opacity=".7"/>
         <rect x="${x+w/2-w*.29}" y="${top+3}" width="${w*.17}" height="${Math.max(0,h-6)}" rx="${w*.08}" fill="${dk}" opacity=".5"/>
         <rect x="${x-w/2}" y="${top+10}" width="${w}" height="2" fill="${dk}" opacity=".35"/><rect x="${x-w/2}" y="${bottom-12}" width="${w}" height="2" fill="${dk}" opacity=".35"/>${p.dance?`<g class="poleglow"><circle cx="${x}" cy="${top}" r="13" fill="#bfe0ff" opacity=".45"/><circle cx="${x}" cy="${top}" r="6" fill="#ffffff" opacity=".9"/></g>`:''}</g></g>`;
+    }
+    if(p.type==='ball'){
+      const d=Math.max(T.dMin,Math.min(T.dMax,+p.d||T.dDef)), r=d/2, lb=Math.max(0,Math.min(T.liftMax,p.lift==null?T.liftDef:+p.lift)), cy=FLOOR_Y-lb-r;
+      const shO=(.16*Math.max(.25,1-lb/260)).toFixed(3), shR=(r*.9*Math.max(.5,1-lb/500)).toFixed(1);
+      // flat on purpose: one plain circle, cheap to draw
+      return `<g class="prop" data-pi="${i}"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="${shR}" ry="${Math.max(1.6,r*.12).toFixed(1)}" fill="#2d2430" opacity="${shO}"/><g class="propmv">${p.dance?`<circle class="poleglow" cx="${x}" cy="${cy.toFixed(1)}" r="${(r+8).toFixed(1)}" fill="#bfe0ff" opacity=".35"/>`:''}<circle cx="${x}" cy="${cy.toFixed(1)}" r="${r}" fill="${c}" stroke="${e}" stroke-width=".9"/>${p.stk?`<g transform="translate(${x} ${cy.toFixed(1)}) scale(${(r/20).toFixed(3)})">${ballSticker(p.stk,p.stkC||(lum(c)>160?'#2b2b33':'#ffffff'))}</g>`:''}</g></g>`;
     }
     return '';
   }).join('');
@@ -724,33 +747,48 @@ function propsControls(){
   if(!open) return h;
   h+=`<div class="wardrobe">`;
   ps.forEach((p,i)=>{ const T=PROP_TYPES[p.type]; if(!T) return;
-    const x=Math.round(+p.x||60), ht=Math.round(+p.h||T.hDef);
-    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>${p.hidden?'ซ่อนอยู่':p.front?'อยู่หน้าตัวละคร':'อยู่หลังตัวละคร'}</small>
-      <span class="pat-row" style="margin-top:4px"><button class="pat ${p.hidden?'on':''}" data-prophide="${i}">${p.hidden?'👁 แสดงไม้พลอง':'🙈 ซ่อนไม้พลอง'}</button></span>
-      <span class="pat-row" style="margin-top:4px"><button class="pat ${p.front?'':'on'}" data-propfront="${i}" data-v="0">หลังตัวละคร</button><button class="pat ${p.front?'on':''}" data-propfront="${i}" data-v="1">หน้าตัวละคร</button></span>
-      <span class="mini-label">ความยาวไม้</span><span class="len-row"><input type="range" class="slider" min="${T.hMin}" max="${T.hMax}" step="1" value="${ht}" data-prop="${i}" data-pk="h" aria-label="ความยาวไม้"></span>
-      <span class="mini-label">ความหนาไม้</span><span class="len-row"><input type="range" class="slider" min="${PROP_W_MIN}" max="${PROP_W_MAX}" step="1" value="${Math.round(+p.w||PROP_W_DEF)}" data-prop="${i}" data-pk="w" aria-label="ความหนาไม้"></span>
-      <span class="mini-label">ลอยจากพื้น</span><span class="len-row"><input type="range" class="slider" min="0" max="${PROP_LIFT_MAX}" step="1" value="${Math.round(+p.lift||0)}" data-prop="${i}" data-pk="lift" aria-label="ลอยจากพื้น"></span>
-      <span class="pat-row" style="margin-top:6px"><button class="pat ${p.dance?'on':''}" data-propdance="${i}">💃 โหมดเต้นระบำ${p.dance?' · เปิด':''}</button></span>${p.dance?`<small style="display:block;color:var(--muted)">ขยับขึ้นลงนำหน้าตัวละครนิดหน่อย ความเร็วตามระดับความเขิน (นิ่งที่ 0 และ 10)</small>`:''}
-      <span class="mini-label">ตำแหน่ง <small>(ซ้าย ← → ขวา)</small></span><span class="len-row"><input type="range" class="slider" min="10" max="290" step="1" value="${x}" data-prop="${i}" data-pk="x" aria-label="ตำแหน่งซ้ายขวา"></span>
-      <span class="mini-label">สี</span><span class="swatches mini">${T.cols.map(([c,n])=>`<button class="sw ${c===(p.c||T.cols[0][0])?'on':''}" style="background:${c}" data-propc="${i}" data-c="${c}" aria-label="${n}" title="${n}"></button>`).join('')}</span></span>
+    const x=Math.round(+p.x||60), ball=p.type==='ball', c=p.c||T.cols[0][0];
+    const sl=(k,lab,mn,mx,v)=>`<span class="mini-label">${lab}</span><span class="len-row"><input type="range" class="slider" min="${mn}" max="${mx}" step="1" value="${Math.round(v)}" data-prop="${i}" data-pk="${k}" aria-label="${lab}"></span>`;
+    h+=`<div class="wear on"><span class="wear-ic">${T.ic}</span><span class="wear-body"><b>${T.name} ${ps.filter(q=>q.type===p.type).length>1?i+1:''}</b><small>${p.hidden?'ซ่อนอยู่':'ชั้น: '+PROP_LAYERS.find(L=>L[0]===propLayer(p))[1]}</small>
+      <span class="pat-row" style="margin-top:4px"><button class="pat ${p.hidden?'on':''}" data-prophide="${i}">${p.hidden?'👁 แสดง'+T.name:'🙈 ซ่อน'+T.name}</button></span>
+      <span class="mini-label">ชั้นเลเยอร์</span><span class="pat-row" style="margin-top:2px">${PROP_LAYERS.map(([k,n])=>`<button class="pat ${propLayer(p)===k?'on':''}" data-propfront="${i}" data-v="${k}">${n}</button>`).join('')}</span>
+      <span class="pat-row" style="margin-top:4px"><button class="pat" data-propord="${i}" data-v="1"${i===ps.length-1?' disabled':''}>⬆ ขึ้นมาข้างหน้า</button><button class="pat" data-propord="${i}" data-v="-1"${i===0?' disabled':''}>⬇ ถอยไปข้างหลัง</button></span>`
+      +(ball
+        ? sl('d','ขนาดลูกบอล',T.dMin,T.dMax,+p.d||T.dDef)+sl('lift','ลอยจากพื้น',0,T.liftMax,p.lift==null?T.liftDef:+p.lift)
+          +`<span class="mini-label">สติกเกอร์บนลูกบอล</span><span class="pat-row" style="margin-top:2px">${BALL_STK.map(([k,n])=>`<button class="pat ${(p.stk||'')===k?'on':''}" data-propstk="${i}" data-v="${k}">${n}</button>`).join('')}</span>`
+          +(p.stk?`<span class="mini-label">สีสติกเกอร์</span><span class="swatches mini">${[['','อัตโนมัติ'],['#ffffff','ขาว'],['#2b2b33','ดำ'],['#e8577a','ชมพู'],['#c23d5a','แดง'],['#f2c45a','เหลือง'],['#6fb6e8','ฟ้า']].map(([cc,n])=>`<button class="sw ${(p.stkC||'')===cc?'on':''}" style="background:${cc||'linear-gradient(135deg,#fff 50%,#2b2b33 50%)'}" data-propstkc="${i}" data-c="${cc}" aria-label="${n}" title="${n}"></button>`).join('')}<label class="sw" title="เลือกสีเอง" style="background:conic-gradient(red,#ff0,lime,cyan,blue,#f0f,red);position:relative;overflow:hidden"><input type="color" value="${p.stkC||'#ffffff'}" data-propstkcin="${i}" aria-label="เลือกสีสติกเกอร์เองได้ทุกเฉด" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;border:0;padding:0;cursor:pointer"></label></span>`:'')
+        : sl('h','ความยาวไม้',T.hMin,T.hMax,+p.h||T.hDef)+sl('w','ความหนาไม้',PROP_W_MIN,PROP_W_MAX,+p.w||PROP_W_DEF)+sl('lift','ลอยจากพื้น',0,PROP_LIFT_MAX,+p.lift||0))
+      +`<span class="pat-row" style="margin-top:6px"><button class="pat ${p.dance?'on':''}" data-propdance="${i}">💃 โหมดเต้นระบำ${p.dance?' · เปิด':''}</button></span>${p.dance?`<small style="display:block;color:var(--muted)">ขยับขึ้นลงนำหน้าตัวละครนิดหน่อย ความเร็วตามระดับความเขิน (นิ่งที่ 0 และ 10) · ทุกชิ้นที่เปิดโหมดนี้เต้นจังหวะเดียวกัน</small>`:''}
+      ${sl('x','ตำแหน่ง (ซ้าย ← → ขวา)',10,290,x)}
+      <span class="mini-label">สี</span><span class="swatches mini">${T.cols.map(([cc,n])=>`<button class="sw ${cc===c?'on':''}" style="background:${cc}" data-propc="${i}" data-c="${cc}" aria-label="${n}" title="${n}"></button>`).join('')}<label class="sw propcpick" title="เลือกสีเอง" style="background:conic-gradient(red,#ff0,lime,cyan,blue,#f0f,red);position:relative;overflow:hidden"><input type="color" value="${c}" data-propcin="${i}" aria-label="เลือกสีเองได้ทุกเฉด" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;border:0;padding:0;cursor:pointer"></label></span></span>
       <button class="btn small" data-propdel="${i}">ลบ</button></div>`; });
   h+=`</div><div class="pat-row" style="margin:8px 0 4px">${Object.entries(PROP_TYPES).map(([k,T])=>`<button class="pat" data-propadd="${k}">+ ${T.ic} ${T.name}</button>`).join('')}</div>`;
   return h;
 }
 document.addEventListener('click',ev=>{
   const a=ev.target.closest('[data-propadd]'), d=ev.target.closest('[data-propdel]'), c=ev.target.closest('[data-propc]'), dn=ev.target.closest('[data-propdance]'), fr=ev.target.closest('[data-propfront]');
-  const hd=ev.target.closest('[data-prophide]');
-  if(!a&&!d&&!c&&!dn&&!fr&&!hd) return;
+  const hd=ev.target.closest('[data-prophide]'), od=ev.target.closest('[data-propord]');
+  const sk=ev.target.closest('[data-propstk]'), skc=ev.target.closest('[data-propstkc]');
+  if(sk||skc){ const p=(S.props||[])[+(sk||skc).dataset[sk?'propstk':'propstkc']]; if(p){ if(sk) p.stk=sk.dataset.v; else p.stkC=skc.dataset.c; } update(); return; }
+  if(!a&&!d&&!c&&!dn&&!fr&&!hd&&!od) return;
+  // order among props: later in the list = drawn over the earlier ones in the same layer
+  if(od){ const ps=S.props||[], i=+od.dataset.propord, j=i+(+od.dataset.v); if(ps[i]&&ps[j]){ [ps[i],ps[j]]=[ps[j],ps[i]]; } update(); return; }
   if(hd){ const p=(S.props||[])[+hd.dataset.prophide]; if(p){ p.hidden=!p.hidden; } update(); return; }
-  if(fr){ const p=(S.props||[])[+fr.dataset.propfront]; if(p){ p.front=fr.dataset.v==='1'; } update(); return; }
+  if(fr){ const p=(S.props||[])[+fr.dataset.propfront]; if(p){ const v=fr.dataset.v; p.layer=v==='1'?'front':v==='0'?'back':v; p.front=p.layer==='front'; } update(); return; }
   if(dn){ const p=(S.props||[])[+dn.dataset.propdance]; if(p){ p.dance=!p.dance; } update(); return; }
   S.props=Array.isArray(S.props)?S.props:[];
-  if(a){ const T=PROP_TYPES[a.dataset.propadd]; const n=S.props.length; S.props.push({type:a.dataset.propadd, x:n%2?240:60, h:T.hDef, c:T.cols[0][0]}); }
+  if(a){ const T=PROP_TYPES[a.dataset.propadd], n=S.props.length, k=a.dataset.propadd;
+    S.props.push(k==='ball'?{type:k, x:n%2?235:65, d:T.dDef, lift:T.liftDef, c:T.cols[0][0], dance:true}:{type:k, x:n%2?240:60, h:T.hDef, c:T.cols[0][0]}); }
   if(d) S.props.splice(+d.dataset.propdel,1);
   if(c && S.props[+c.dataset.propc]) S.props[+c.dataset.propc].c=c.dataset.c;
   update();
 });
+// any colour at all: the native colour picker (live while dragging, panel redrawn when it closes)
+document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-propcin]'); if(!r) return;
+  const p=(S.props||[])[+r.dataset.propcin]; if(!p) return; p.c=r.value; paintCanvas(); persist(); });
+document.addEventListener('change',ev=>{ const r=ev.target.closest('[data-propcin],[data-propstkcin]'); if(r) renderPanel(); });
+document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-propstkcin]'); if(!r) return;
+  const p=(S.props||[])[+r.dataset.propstkcin]; if(!p) return; p.stkC=r.value; paintCanvas(); persist(); });
 document.addEventListener('input',ev=>{
   const r=ev.target.closest('[data-prop]'); if(!r) return;
   const p=(S.props||[])[+r.dataset.prop]; if(!p) return;
@@ -2776,7 +2814,7 @@ function render(state=S){
       +`<g data-pose="g" data-leg="1"><ellipse cx="133.4" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/><ellipse cx="166.6" cy="397.6" rx="7.4" ry="6" fill="url(#kneeb)"/></g>`; }
   // props in front of her: over the body, but every piece of clothing is drawn on top of them.
   // (they sit inside her moving groups, so the loop gives them a counter-transform that keeps them still on the floor)
-  if(live && Array.isArray(S.props) && S.props.some(p=>p.front)) g+=`<g class="propfront">${drawProps('front')}</g>`;
+  if(live && Array.isArray(S.props) && S.props.some(p=>propLayer(p)==='front')) g+=`<g class="propfront">${drawProps('front')}</g>`;
   g+=suitG;
   // an untucked top hangs over the skirt: the skirt may only show below the top's hem, never poke out past its sides
   const underTop=h=>{
@@ -2850,6 +2888,8 @@ function render(state=S){
   // racing heart over the centre of her left breast (viewer's right), riding along with the body
   g+=`<g data-pose="g"><g data-tr="161 187" transform="translate(161 187)"><g class="heartbeat" style="opacity:var(--s-heart,0)"><path d="M-6.0 -2.0 C-6.0 -5.4 -1.6 -6.6 0.0 -3.4 C1.6 -6.6 6.0 -5.4 6.0 -2.0 C6.0 2.0 0.0 5.6 0.0 7.0 C0.0 5.6 -6.0 2.0 -6.0 -2.0 Z" fill="#ff5d7e" stroke="#fff" stroke-width="1.2"/><path d="M-3.4 -2.4 Q-2.6 -4.0 -1.0 -3.6" stroke="#fff" stroke-width="1" fill="none" opacity=".8"/></g></g></g>`;
   g+=`</g></g></g></g></g></g>`+(live?FLOAT_FRONT+RAIN_FRONT:'');
+  // props on the very top layer: over her clothes, hair and every effect
+  if(live && Array.isArray(S.props) && S.props.some(p=>propLayer(p)==='top')) g+=`<g class="proptop">${drawProps('top')}</g>`;
   // flat look: no light gradient, no edge/form shadows (outlines and colours only)
   if(!SHADING){
     g=g.replace(/<path [^>]*?filter="url\(#soft2?\)"\/>/g,'')
