@@ -3230,13 +3230,14 @@ function renderLooks(){
     : `<div class="empty">ยังไม่มีลุคที่เก็บไว้ กด ♡ เก็บลุคนี้ เมื่อแต่งได้ถูกใจ</div>`;
   $('looks').querySelectorAll('.look').forEach((el,i)=>{ const sv=el.querySelector('svg'); if(sv && looks[i]) bodyStatic(sv,looks[i]); });
 }
-$('btnSave').onclick=()=>{ const lk=clone(S); for(const k of ['forms','tfOn','tfPre','tfEdit','tfHold','tfSel']) delete lk[k]; delete lk.floatLv; delete lk.floatUp; delete lk.floatDown; delete lk.props;  looks.unshift(lk); looks=looks.slice(0,24); store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
+$('btnSave').onclick=()=>{ const lk=clone(S); for(const k of ['forms','tfOn','tfPre','tfEdit','tfHold','tfSel']) delete lk[k]; delete lk.floatLv; delete lk.floatUp; delete lk.floatDown;  looks.unshift(lk); looks=looks.slice(0,24);   /* props are saved with the look */ store('dressup_looks',looks); renderLooks(); toast('เก็บลุคแล้ว ♡'); think('save',{force:true}); };
 $('looks').addEventListener('click',ev=>{
   const del=ev.target.closest('[data-del]');
   if(del){ ev.stopPropagation(); looks.splice(+del.dataset.del,1); store('dressup_looks',looks); renderLooks(); return; }
   const l=ev.target.closest('[data-load]');
   if(l && S.tfEdit!=null){ applyOutfit(outfitOf(looks[+l.dataset.load])); update(); toast('ใส่ลุคแล้ว แก้ต่อได้เลย'); return; }   // editing a form: only the outfit changes, keep editing
-  if(l){ const keep=floatKeep(); S=clone(looks[+l.dataset.load]); Object.assign(S,keep); update(); toast('ใส่ลุคที่เก็บไว้แล้ว'); }
+  if(l){ const keep=floatKeep(), lk=looks[+l.dataset.load]; if(Array.isArray(lk.props)) delete keep.props;   // a look saved with its props brings them back
+    S=clone(lk); Object.assign(S,keep); update(); toast('ใส่ลุคที่เก็บไว้แล้ว'); }
 });
 
 let tt;
