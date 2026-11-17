@@ -691,7 +691,7 @@ function drawProps(layer){
       const d=Math.max(T.dMin,Math.min(T.dMax,+p.d||T.dDef)), r=d/2, lb=Math.max(0,Math.min(T.liftMax,p.lift==null?T.liftDef:+p.lift)), cy=FLOOR_Y-lb-r;
       const shO=(.16*Math.max(.25,1-lb/260)).toFixed(3), shR=(r*.9*Math.max(.5,1-lb/500)).toFixed(1);
       // flat on purpose: one plain circle, cheap to draw
-      return `<g class="prop" data-pi="${i}"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="${shR}" ry="${Math.max(1.6,r*.12).toFixed(1)}" fill="#2d2430" opacity="${shO}"/><g class="propmv">${p.dance?`<circle class="poleglow" cx="${x}" cy="${cy.toFixed(1)}" r="${(r+8).toFixed(1)}" fill="#bfe0ff" opacity=".35"/>`:''}<circle cx="${x}" cy="${cy.toFixed(1)}" r="${r}" fill="${c}" stroke="${e}" stroke-width=".9"/>${p.stk?`<g transform="translate(${x} ${cy.toFixed(1)}) scale(${(r/20).toFixed(3)})">${ballSticker(p.stk,p.stkC||(lum(c)>160?'#2b2b33':'#ffffff'))}</g>`:''}</g></g>`;
+      return `<g class="prop" data-pi="${i}"><ellipse cx="${x}" cy="${FLOOR_Y+2}" rx="${shR}" ry="${Math.max(1.6,r*.12).toFixed(1)}" fill="#2d2430" opacity="${shO}"/><g class="propmv"><circle cx="${x}" cy="${cy.toFixed(1)}" r="${r}" fill="${c}" stroke="${e}" stroke-width=".9"/>${p.stk?`<g transform="translate(${x} ${cy.toFixed(1)}) scale(${(r/20).toFixed(3)})">${ballSticker(p.stk,p.stkC||(lum(c)>160?'#2b2b33':'#ffffff'))}</g>`:''}</g></g>`;
     }
     return '';
   }).join('');
