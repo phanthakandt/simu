@@ -1342,6 +1342,7 @@ function defaultHairFront(h,skin){
 // slot: top | bottom. cover = how much exposure the piece takes away from the 96% of underwear only.
 const CLOTHES=[
   {id:'tee',slot:'top',ic:'👕',name:'เสื้อยืดคอกลม',cover:34,price:0,c:'#ffffff'},
+  {id:'polo',slot:'top',ic:'🎾',name:'เสื้อโปโล',cover:35,price:0,c:'#ffffff',wearTh:'เสื้อโปโลคอปก... ติดกระดุมครบสองเม็ดแล้วดูเรียบร้อยขึ้นเยอะเลย'},
   {id:'crop',slot:'top',ic:'👚',name:'เสื้อยืดครอปโชว์หน้าท้อง',cover:24,price:0,c:'#f2c45a',wearTh:'เสื้อสั้นจนเห็นสะดือ... ลมโกรกหน้าท้องตลอดเลย'},
   {id:'shirt',slot:'top',ic:'👔',name:'เสื้อเชิ้ตคอปกแขนสั้น',cover:36,price:0,c:'#a9c4e4',wearTh:'ติดกระดุมทีละเม็ด... กระดุมเสื้อผู้หญิงอยู่ฝั่งตรงข้ามนี่นา ติดยากชะมัด'},
   {id:'longshirt',slot:'top',ic:'👔',name:'เสื้อเชิ้ตแขนยาว',cover:40,price:0,c:'#ffffff',wearTh:'แขนยาวถึงข้อมือ... ปิดมิดชิดดี แต่ทำไมใส่แล้วดูเป็นสาวออฟฟิศเต็มตัวเลยล่ะ'},
@@ -1386,8 +1387,8 @@ const cloth=id=>CLOTHES.find(x=>x.id===id);
 // one continuous piece: body and both sleeves share a single outline
 const CROP='M141.5 149.5 Q150 158 158.5 149.5 Q164 154 172 155 Q182.5 156.5 185.8 166.5 L188.4 179.4 Q180 183.4 171.2 183.6 L172.8 184 Q172.2 198 171.8 210.5 Q150 214 128.2 210.5 Q127.8 198 127.2 184 L128.8 183.6 Q120 183.4 111.6 179.4 L114.2 166.5 Q117.5 156.5 128 155 Q136 154 141.5 149.5 Z';
 const TEE='M141.5 149.5 Q150 158 158.5 149.5 Q164 154 172 155 Q182.5 156.5 185.8 166.5 L188.4 179.4 Q180 183.4 171.2 183.6 L172.8 184 Q174 220 185.2 256.4 Q150 262 114.8 256.4 Q126 220 127.2 184 L128.8 183.6 Q120 183.4 111.6 179.4 L114.2 166.5 Q117.5 156.5 128 155 Q136 154 141.5 149.5 Z';
-function drawTee(c,crop){
-  const e=edge(c), d=shade(c,-.1), TEE_D=crop?CROP:TEE;
+function drawTee(c,crop,polo){
+  const e=edge(c), d=shade(c,-.1), TEE_D=polo?POLO_BODY:crop?CROP:TEE;
   let g='';
   g+=`<path d="${TEE_D}" fill="${c}" stroke="${e}" stroke-width="1.1"/>`;
   g+=`<clipPath id="teec"><path d="${TEE_D}"/></clipPath><g clip-path="url(#teec)">`
@@ -1400,17 +1401,52 @@ function drawTee(c,crop){
   // sleeve seams, sleeve hems, ribbed crew neck and hem stitching
   g+=`<path d="M128 155 Q125.4 170 127.2 184 M172 155 Q174.6 170 172.8 184" stroke="${e}" stroke-width=".8" fill="none" opacity=".45"/>`;
   g+=`<path d="M112 177 Q120 181 128.6 181.4 M188 177 Q180 181 171.4 181.4" stroke="${e}" stroke-width=".8" fill="none" opacity=".5" stroke-dasharray="2 1.6"/>`;
-  g+=`<path d="M141.5 149.5 Q150 158 158.5 149.5" stroke="${d}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
-  g+=`<path d="M141.8 152.2 Q150 160 158.2 152.2" stroke="${e}" stroke-width=".7" fill="none" opacity=".6"/>`;
+  if(!polo){
+    g+=`<path d="M141.5 149.5 Q150 158 158.5 149.5" stroke="${d}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
+    g+=`<path d="M141.8 152.2 Q150 160 158.2 152.2" stroke="${e}" stroke-width=".7" fill="none" opacity=".6"/>`;
+  }
   g+= crop ? `<path d="M128.8 207.4 Q150 210.6 171.2 207.4" stroke="${e}" stroke-width=".8" fill="none" stroke-dasharray="2 1.6" opacity=".7"/>`
              : `<path d="M115.8 253 Q150 258.6 184.2 253" stroke="${e}" stroke-width=".8" fill="none" stroke-dasharray="2 1.6" opacity=".7"/>`;
   return g;
 }
 
+// polo shirt: the tee's body and sleeves with a knit collar folded down over a buttoned stand, a short
+// two-button placket, ribbed sleeve cuffs and little side vents at the hem
+// polo body: the tee with the same open V neck as the shirts, so the shirt collar sits on it the same way
+const POLO_BODY=('M139.4 150.4 L150 171.4 L160.6 150.4 Q165 154 172 155'+TEE.slice(TEE.indexOf(' Q182.5 156.5'))).replace('Q136 154 141.5 149.5 Z','Q135 154 139.4 150.4 Z');
+// the collar every collared top shares: stand round the neck, small rever where the front opens, the fall on top
+function shirtCollar(c){
+  const e=edge(c), under=shade(c,-.16);
+  let g=napeCut([COLLAR_STAND_L,mir(COLLAR_STAND_L)].map(cd=>`<path d="${cd}" fill="${under}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`).join(''));
+  g+=[REVER_L,mir(REVER_L)].map(cd=>`<path d="${cd}" fill="${shade(c,-.06)}" stroke="${e}" stroke-width=".8" stroke-linejoin="round"/>`).join('');
+  g+=napeCut([COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join(''));
+  g+=`<path d="M141.6 147.2 Q141 149.6 141.8 152.4 M158.4 147.2 Q159 149.6 158.2 152.4" stroke="${e}" stroke-width=".6" fill="none" opacity=".5"/>`;
+  g+=`<path d="M135 156.6 L138.2 163.4 Q141.6 162.6 144.6 162.2 M165 156.6 L161.8 163.4 Q158.4 162.6 155.4 162.2" stroke="${e}" stroke-width=".55" fill="none" stroke-dasharray="1.4 1.1" opacity=".55"/>`;
+  return g;
+}
+function drawPolo(c){
+  const e=edge(c), d=shade(c,-.1), btn=shade(c,-.32);
+  let g=drawTee(c,false,true);
+  // short placket from the bottom of the V down the chest, with two buttons
+  g+=`<path d="M148.2 172 L148.2 190 M151.8 171.6 L151.8 190 M148.2 190 L151.8 190" stroke="${e}" stroke-width=".8" fill="none" opacity=".55"/>`;
+  for(const y of [178,186]) g+=`<circle cx="150" cy="${y}" r="1.35" fill="${btn}"/>`;
+  g+=shirtCollar(c);
+  // ribbed sleeve cuffs
+  g+=`<path d="M111.9 177.8 Q120 181.8 128.7 182.2 M188.1 177.8 Q180 181.8 171.3 182.2" stroke="${d}" stroke-width="2.2" fill="none" opacity=".55"/>`;
+  // side vents at the hem
+  g+=`<path d="M115.6 256.2 L117.4 250 M184.4 256.2 L182.6 250" stroke="${e}" stroke-width=".8" opacity=".6"/>`;
+  return g;
+}
 // short-sleeved collared shirt: open top button, pointed collar sitting off the neck, button placket, curved shirttail hem
 const SHIRT_PUFF='M139.4 150.4 L150 171.4 L160.6 150.4 Q165 154 172 155 Q181 152.2 186.4 156.4 Q191 160.4 190.6 168 Q190.2 175 188.6 180.6 L189 183 Q180.4 186.8 171.4 186.4 L172.8 186 Q172.6 200 171.6 214 C171.4 234 188.6 240 189.2 254 C188.4 265 171 270.6 155.8 271.4 L150 258.6 L144.2 271.4 C129 270.6 111.6 265 110.8 254 C111.4 240 128.6 234 128.4 214 Q127.4 200 127.2 186 L128.6 186.4 Q119.6 186.8 111 183 L111.4 180.6 Q109.8 175 109.4 168 Q109 160.4 113.6 156.4 Q119 152.2 128 155 Q135 154 139.4 150.4 Z';
 const SHIRT='M139.4 150.4 L150 171.4 L160.6 150.4 Q165 154 172 155 Q183 156.5 186.6 167 L189.4 181.6 Q180.4 185.8 171.2 185.6 L172.8 186 Q172.6 200 171.6 214 C171.4 234 188.6 240 189.2 254 C188.4 265 171 270.6 155.8 271.4 L150 258.6 L144.2 271.4 C129 270.6 111.6 265 110.8 254 C111.4 240 128.6 234 128.4 214 Q127.4 200 127.2 186 L128.8 185.6 Q119.6 185.8 110.6 181.6 L113.4 167 Q117 156.5 128 155 Q135 154 139.4 150.4 Z';
 // collar, left half: a stand that hugs the side of the neck, and a fall that rolls over it and lies on the shoulder/chest
+// collars go round the back of the neck: nothing of them may show on the neck itself (it would look like the collar
+// was poking forward at the nape), so each collar piece is trimmed along the neck's edges
+function napeCut(inner){
+  const id='nape'+(++CELN);
+  return `<clipPath id="${id}"><path clip-rule="evenodd" d="M0 0 L300 0 L300 600 L0 600 Z M143.6 60 L143.5 138 Q143.4 143.4 141.6 146.4 Q146 147.8 150 147.8 Q154 147.8 158.4 146.4 Q156.6 143.4 156.5 138 L156.4 60 Z"/></clipPath><g clip-path="url(#${id})">${inner}</g>`;
+}
 const COLLAR_STAND_L='M138.8 151 Q139.2 147.8 140.8 145.8 L142.2 146.6 Q141.3 148.8 141.4 151.6 Z';
 const COLLAR_FALL_L='M140.8 145.8 Q137.4 147.4 135.2 151.4 Q133.8 154 133.4 156.4 L137.6 165.2 Q142 164.2 146.2 163.6 Q143.6 157.4 142.2 151.2 Q141.6 148.6 142.2 146.6 Z';
 // small lapel where the unbuttoned front folds open below the collar
@@ -1456,9 +1492,9 @@ function drawShirt(c,puff,uni,long){
   }
   // collar: stand, rever, then the fall on top
   const under=shade(c,-.16);
-  g+=[COLLAR_STAND_L,mir(COLLAR_STAND_L)].map(cd=>`<path d="${cd}" fill="${under}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`).join('');
+  g+=napeCut([COLLAR_STAND_L,mir(COLLAR_STAND_L)].map(cd=>`<path d="${cd}" fill="${under}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`).join(''));
   if(tie) g+=drawTie('knot'); else g+=[REVER_L,mir(REVER_L)].map(cd=>`<path d="${cd}" fill="${shade(c,-.06)}" stroke="${e}" stroke-width=".8" stroke-linejoin="round"/>`).join('');
-  g+=[COLLAR_FALL_L,mir(COLLAR_FALL_L)].map((cd,i)=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join('');
+  g+=napeCut([COLLAR_FALL_L,mir(COLLAR_FALL_L)].map((cd,i)=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join(''));
   // roll line where the collar folds over the stand, and edge stitching along the collar
   g+=`<path d="M141.6 147.2 Q141 149.6 141.8 152.4 M158.4 147.2 Q159 149.6 158.2 152.4" stroke="${e}" stroke-width=".6" fill="none" opacity=".5"/>`;
   g+=`<path d="M135 156.6 L138.2 163.4 Q141.6 162.6 144.6 162.2 M165 156.6 L161.8 163.4 Q158.4 162.6 155.4 162.2" stroke="${e}" stroke-width=".55" fill="none" stroke-dasharray="1.4 1.1" opacity=".55"/>`;
@@ -1614,7 +1650,7 @@ function solveQ(p0,p1,p2,y){ let lo=0,hi=1; for(let k=0;k<24;k++){ const t=(lo+h
 function solveC(P,y){ let lo=0,hi=1; for(let k=0;k<26;k++){ const t=(lo+hi)/2,u=1-t, yy=u*u*u*P[0][1]+3*u*u*t*P[1][1]+3*u*t*t*P[2][1]+t*t*t*P[3][1]; if(yy<y) lo=t; else hi=t; } const t=(lo+hi)/2,u=1-t; return u*u*u*P[0][0]+3*u*u*t*P[1][0]+3*u*t*t*P[2][0]+t*t*t*P[3][0]; }
 function topOuterX(y){
   if(!S.wTop || (S.tuck && S.wBottom && y>bottomWaist()+.6)) return null;
-  if(S.wTop==='tee') return (y>=184 && y<=256.4) ? solveQ([127.2,184],[126,220],[114.8,256.4],y) : null;
+  if(S.wTop==='tee'||S.wTop==='polo') return (y>=184 && y<=256.4) ? solveQ([127.2,184],[126,220],[114.8,256.4],y) : null;
   if(S.wTop==='shirt'||S.wTop==='longshirt'||S.wTop==='puffshirt'||S.wTop==='uni'){ if(y>=186 && y<=214) return solveQ([127.2,186],[127.4,200],[128.4,214],y); if(y>214 && y<=254) return solveC([[128.4,214],[128.6,234],[111.4,240],[110.8,254]],y); return null; }
   if(S.wTop==='crop') return (y>=184 && y<=210.5) ? solveQ([127.2,184],[127.8,198],[128.2,210.5],y) : null;
   if(S.wTop==='offshoulder') return (y>=186 && y<=OFFSH_HEM) ? (y<=214?bodiceX(y):legOuterX(y))-.6 : null;
@@ -2224,9 +2260,9 @@ function drawOversizeShirt(c,long){
     g+=`<path d="M150 154 L150 171.6" stroke="${e}" stroke-width=".7" opacity=".5"/>`;
   }
   const under=shade(c,-.16);
-  g+=[COLLAR_STAND_L,mir(COLLAR_STAND_L)].map(cd=>`<path d="${cd}" fill="${under}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`).join('');
+  g+=napeCut([COLLAR_STAND_L,mir(COLLAR_STAND_L)].map(cd=>`<path d="${cd}" fill="${under}" stroke="${e}" stroke-width=".9" stroke-linejoin="round"/>`).join(''));
   if(tie) g+=drawTie('knot'); else g+=[REVER_L,mir(REVER_L)].map(cd=>`<path d="${cd}" fill="${shade(c,-.06)}" stroke="${e}" stroke-width=".8" stroke-linejoin="round"/>`).join('');
-  g+=[COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join('');
+  g+=napeCut([COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join(''));
   g+=`<path d="M141.6 147.2 Q141 149.6 141.8 152.4 M158.4 147.2 Q159 149.6 158.2 152.4" stroke="${e}" stroke-width=".6" fill="none" opacity=".5"/>`;
   if(tie) g+=drawTie('front');
   return g;
@@ -2445,12 +2481,13 @@ document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-hcm]');
 const SLEEVE_FULL_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 Q106.4 224.6 116.4 228.4 L128 243.8 L136.4 233.6 L120.2 214.8 L127.6 184 L127.8 160.6 Q127.4 156 124 155.4 Z';
 const SLEEVE_UP_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 L113.6 215.6 L120.2 214.8 L127.6 184 L127.8 160.6 Q127.4 156 124 155.4 Z';
 const SLEEVE_EDGE_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 M120.2 214.8 L127.6 184';
-const CARDI_L='M141.4 149.6 Q136 154.2 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q132 263.2 150 263.6 L150 202 Q143.4 175 141.4 149.6 Z';
-const CARDI_OPEN_L='M141.4 149.6 Q136 154.2 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q127.6 262.8 140.6 263.2 Q140.6 200 141.4 149.6 Z';
-const BLAZER_L='M141.4 149.6 Q136 154.2 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.4 272.4 L150 226 L143.6 152 Z';
-const BLAZER_OPEN_L='M141.4 149.6 Q136 154.2 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.2 272.4 L142.6 226 L143.6 152 Z';
-const LAPEL_L='M141.4 149.6 Q136.8 155 133.4 168.4 L136.6 169.8 L135 174.2 Q141.8 199 149.6 224.6 L143.6 152 Z';
-const LAPEL_OPEN_L='M141.4 149.6 Q136.8 155 133.4 168.4 L136.6 169.8 L135 174.2 Q138.6 200 142.6 226 L143.6 152 Z';
+// the jackets' neckline comes right up against the side of the neck so the top under it is covered there
+const CARDI_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q132 263.2 150 263.6 L150 202 Q143.8 175 142.4 146.6 Z';
+const CARDI_OPEN_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q127.6 262.8 140.6 263.2 Q141 200 142.4 146.6 Z';
+const BLAZER_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.4 272.4 L150 226 L142.6 150.2 Z';
+const BLAZER_OPEN_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.2 272.4 L142.6 226 L142.6 150.2 Z';
+const LAPEL_L='M142.4 146.6 Q137.2 154 133.4 168.4 L136.6 169.8 L135 174.2 Q141.8 199 149.6 224.6 L142.6 150.2 Z';
+const LAPEL_OPEN_L='M142.4 146.6 Q137.2 154 133.4 168.4 L136.6 169.8 L135 174.2 Q138.6 200 142.6 226 L142.6 150.2 Z';
 const SLEEVE_PUFF_FULL_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 Q103.2 227 115.4 231 L127.6 247 L137.8 235 L121.8 215.4 L127.2 184 L127.6 160.4 Q127 155.2 122.6 154.4 Z';
 const SLEEVE_PUFF_UP_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 L112.6 216.6 L121.8 215.4 L127.2 184 L127.6 160.4 Q127 155.2 122.6 154.4 Z';
 const SLEEVE_PUFF_EDGE_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 M121.8 215.4 L127.2 184';
@@ -2496,11 +2533,11 @@ function outerColor(){ return S.wOuterC||cloth(S.wOuter).c; }
 // behind the body: the whole sleeve, so the forearm disappears behind the back like the arms do
 // an open cardigan: the shirt collar is laid out over it (the tie stays on top of the collar)
 function collarOverOuter(){
-  if(S.wOuter!=='cardigan' || S.wDress || !TIE_TOPS.includes(S.wTop)) return '';
+  if(!['cardigan','blazer'].includes(S.wOuter) || S.wDress || !(TIE_TOPS.includes(S.wTop) || S.wTop==='polo')) return '';
   const c=S.wTopC||cloth(S.wTop).c, e=edge(c);
-  let g=[COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join('');
+  let g=napeCut([COLLAR_FALL_L,mir(COLLAR_FALL_L)].map(cd=>`<path d="${cd}" fill="${c}" stroke="${e}" stroke-width="1" stroke-linejoin="round"/>`).join(''));
   g+=`<path d="M135 156.6 L138.2 163.4 Q141.6 162.6 144.6 162.2 M165 156.6 L161.8 163.4 Q158.4 162.6 155.4 162.2" stroke="${e}" stroke-width=".55" fill="none" stroke-dasharray="1.4 1.1" opacity=".55"/>`;
-  if(tieOn()) g+=drawTie('front');
+  if(S.wTop!=='polo' && tieOn()) g+=drawTie('front');
   return `<g data-pose="g">${g}</g>`;
 }
 function drawOuterBack(){
@@ -2518,8 +2555,8 @@ function drawOuterFront(){
     const L=S.cardiOpen?CARDI_OPEN_L:CARDI_L;
     body+=both(L,`fill="${c}" stroke="${e}" stroke-width="1.1" stroke-linejoin="round"`);
     // ribbed front band, hem band and knit texture
-    body+= S.cardiOpen ? both('M141.4 149.6 Q140.6 200 140.6 263.2',`stroke="${d}" stroke-width="2.6" fill="none"`)
-                       : both('M141.4 149.6 Q143.4 175 150 202 L150 263.6',`stroke="${d}" stroke-width="2.6" fill="none"`);
+    body+= S.cardiOpen ? both('M142.4 146.6 Q141 200 140.6 263.2',`stroke="${d}" stroke-width="2.6" fill="none"`)
+                       : both('M142.4 146.6 Q143.8 175 150 202 L150 263.6',`stroke="${d}" stroke-width="2.6" fill="none"`);
     body+= both(S.cardiOpen?'M114 256.6 Q127.6 260 140.4 260.4':'M114 256.6 Q132 260.4 150 260.8',`stroke="${d}" stroke-width="1" fill="none" stroke-dasharray="1 1.4"`);
     body+= both('M130.4 196 Q129 228 120 252 M135 200 Q134.4 230 130 256',`stroke="${d}" stroke-width=".7" fill="none" opacity=".55"`);
     if(!S.cardiOpen) body+=[212,226,240,254].map(y=>`<circle cx="150" cy="${y}" r="1.4" fill="${shade(c,-.3)}"/>`).join('');
@@ -2559,6 +2596,17 @@ function drawOuterFront(){
   for(const [U,E] of [[SU,SE],[mir(SU),mir(SE)]]) sl+=`<path d="${U}" fill="${c}"/><path d="${E}" stroke="${e}" stroke-width="1.1" fill="none" stroke-linejoin="round"/>`;
   if(id==='puffer') sl+=both('M112.6 174 Q119.6 177 127.2 174.4 M109.6 188.6 Q117.4 191.6 126 189.4 M106.4 203 Q114.4 206 123.4 204.2',`stroke="${lum(c)<70?shade(c,.3):shade(c,-.22)}" stroke-width=".9" fill="none"`);
   else sl+=both('M121 168 Q119.4 190 117.6 204',`stroke="${d}" stroke-width=".7" fill="none" opacity=".5"`);
+  // cardigan / blazer: they come up to the neck, but nothing may sit on the neck itself
+  // (trim along the skin's neck edge, down to the base of the throat)
+  if(id==='cardigan'||id==='blazer'){
+    const nk=`M0 0 L300 0 L300 600 L0 600 Z M143.6 90 L143.5 ${RY(138).toFixed(2)} Q143.3 ${RY(144).toFixed(2)} 142.9 ${RY(146.6).toFixed(2)} Q146 ${RY(151.6).toFixed(2)} 150 ${RY(152).toFixed(2)} Q154 ${RY(151.6).toFixed(2)} 157.1 ${RY(146.6).toFixed(2)} Q156.7 ${RY(144).toFixed(2)} 156.5 ${RY(138).toFixed(2)} L156.4 90 Z`;
+    // a collared top under it: its collar lies over the jacket, so also keep the jacket out of the opening between
+    // the two collar points (the stand and the shirt's V show there, as without the jacket)
+    const Y=y=>RY(y).toFixed(2);
+    const nkC=`M0 0 L300 0 L300 600 L0 600 Z M143.6 90 L143.5 ${Y(138)} Q143.2 ${Y(143)} 142.2 ${Y(146.6)} Q141.6 ${Y(148.6)} 142.2 ${Y(151.2)} Q143.6 ${Y(157.4)} 146.2 ${Y(163.6)} L150 ${Y(171.4)} L153.8 ${Y(163.6)} Q156.4 ${Y(157.4)} 157.8 ${Y(151.2)} Q158.4 ${Y(148.6)} 157.8 ${Y(146.6)} Q156.8 ${Y(143)} 156.5 ${Y(138)} L156.4 90 Z`;
+    const cl=`<clipPath id="ocneck"><path clip-rule="evenodd" d="${collarOverOuter()?nkC:nk}"/></clipPath>`;
+    return `${cl}<g data-pose="g">${hasHood()?hoodRing(c,e):''}</g><g clip-path="url(#ocneck)"><g data-pose="g">${body}</g><g data-pose="g">${sl}</g><g data-pose="g">${top}</g></g>`;
+  }
   return `<g data-pose="g">${hasHood()?hoodRing(c,e):''}</g><g data-pose="g">${body}</g><g data-pose="g">${sl}</g><g data-pose="g">${top}</g>`;
 }
 function pufferControls(){
@@ -2575,7 +2623,7 @@ function outerControls(id){
 }
 document.addEventListener('click',ev=>{ const b=ev.target.closest('[data-oopen]'); if(!b) return;
   const k=S.wOuter==='cardigan'?'cardiOpen':'blazerOpen'; S[k]=b.dataset.oopen==='1'; update(); });
-const CLOTH_DRAW={y2kskirt:drawY2KSkirt,yokepleat:drawYokePleat,tritube:drawTriTube,offshoulder:drawOffShoulder,oversize:drawOversize,oversizeshirt:c=>drawOversizeShirt(c,false),oversizeshirt_long:c=>drawOversizeShirt(c,true),cami:drawCami,tubetop:drawTubeTop,cutout:drawCutout,tee:c=>drawTee(c,false),crop:c=>drawTee(c,true),shirt:c=>drawShirt(c,false),longshirt:c=>drawShirt(c,false,false,true),puffshirt:c=>drawShirt(c,true),uni:c=>drawShirt(c,false,true),miniskirt:c=>drawSkirt(c,false),slitskirt:c=>drawSkirt(c,true),boxpleat:drawPleated,boxpleat_low:c=>drawPleated(c,LOW_WAIST),pleat_knife:drawPleated,pleat_wide:drawPleated,pleat_accordion:drawPleated,pleat_tennis:drawPleated,aline:c=>drawAline(c,false),glitter:drawGlitter,slipdress:drawSlipDress,qipao:drawQipao,alinenb:c=>drawAline(c,true),sneakers:drawSneakers,pumps:drawPumps,heels:drawHeels};
+const CLOTH_DRAW={polo:drawPolo,y2kskirt:drawY2KSkirt,yokepleat:drawYokePleat,tritube:drawTriTube,offshoulder:drawOffShoulder,oversize:drawOversize,oversizeshirt:c=>drawOversizeShirt(c,false),oversizeshirt_long:c=>drawOversizeShirt(c,true),cami:drawCami,tubetop:drawTubeTop,cutout:drawCutout,tee:c=>drawTee(c,false),crop:c=>drawTee(c,true),shirt:c=>drawShirt(c,false),longshirt:c=>drawShirt(c,false,false,true),puffshirt:c=>drawShirt(c,true),uni:c=>drawShirt(c,false,true),miniskirt:c=>drawSkirt(c,false),slitskirt:c=>drawSkirt(c,true),boxpleat:drawPleated,boxpleat_low:c=>drawPleated(c,LOW_WAIST),pleat_knife:drawPleated,pleat_wide:drawPleated,pleat_accordion:drawPleated,pleat_tennis:drawPleated,aline:c=>drawAline(c,false),glitter:drawGlitter,slipdress:drawSlipDress,qipao:drawQipao,alinenb:c=>drawAline(c,true),sneakers:drawSneakers,pumps:drawPumps,heels:drawHeels};
 
 /* ---------- kneeling legs ---------- */
 // Drawn in on-screen coordinates for the fully knelt pose; faded in as she sinks down.
@@ -3836,6 +3884,10 @@ const WORRY=[
     ['คอเสื้อเปิดแบบนี้ ก้มทีไรต้องเอามือกดไว้'],
     ['ติดกระดุมเม็ดบนเพิ่มอีกเม็ดดีไหมนะ'],
     ['ถึงจะใส่เชิ้ต แต่ข้างล่างนี่สิปัญหา']]},
+  {when:c=>c.topId==='polo', w:2, t:[
+    ['เสื้อโปโลนี่ใส่แล้วดูเหมือนจะไปตีกอล์ฟเลย'],
+    ['ปกเสื้อพับไม่ค่อยเข้าที่... คอยจัดอยู่ได้'],
+    ['ติดกระดุมถึงคอแล้วรู้สึกเรียบร้อยดี แต่ร้อนนิดนึง']]},
   {when:c=>c.topId==='tee', w:1, t:[
     ['เสื้อยืดนี่แหละ ใกล้เคียงชีวิตเดิมที่สุดแล้ว'],
     ['เสื้อยืดตัวเดิมๆ แต่พอใส่ร่างนี้ทรงมันไม่เหมือนเดิมเลย'],
