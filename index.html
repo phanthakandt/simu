@@ -316,6 +316,12 @@ body:not(.covered) .cover{display:none}
 .tfbox{margin:0 0 12px;padding:4px 12px 10px;border-radius:16px;background:linear-gradient(135deg,#fff6fb,#f3eefe)}
 .tfbox .sec-title{margin-top:8px}
 .tfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.tftabs{display:flex;gap:4px;margin:8px 0 6px;padding:3px;border-radius:12px;background:rgba(255,255,255,.7)}
+.tftabs button{flex:1;border:0;background:none;border-radius:9px;padding:7px 4px;font-size:13px;color:var(--muted)}
+.tftabs button.on{background:#fff;color:inherit;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.tfform{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:9px 14px;font-size:14px}
+.tfform.on{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.tfform:disabled{opacity:.5}
 .btn.tf{background:linear-gradient(135deg,#f7a8c8,#b79cf2);border-color:transparent;color:#fff}
 .btn.tf:disabled{opacity:.45}
 .tfpick{margin:6px 0 4px}
@@ -3008,8 +3014,8 @@ $('btnReset').onclick=()=>{ const keep=floatKeep(); S=clone(DEFAULT); Object.ass
 function floatKeep(){ return {floatLv:+S.floatLv||0, floatUp:S.floatUp, floatDown:S.floatDown, props:S.props, legSpread:S.legSpread, forms:S.forms}; }
 
 /* ---------- transformation (magical-girl style) ----------
-   Forms are outfits saved apart from what she is wearing. Transform only when she is completely calm (shyness 0):
-   she calls out, glows white, the outfit swaps under the light, the light fades. A form can't take shyness above 8:
+   Forms are outfits saved apart from what she is wearing. Transform at any shyness, and hop between forms freely:
+   she calls out, glows white, the outfit swaps under the light, the light fades. A form can't take shyness 10:
    past that it breaks and she is back in what she wore before, stammering. */
 const TF_SKIP=new Set(['skin','eye','lip','expr','bg','props','floatLv','floatUp','floatDown','floatSpeed','floatAuto','legSpread','legSync','legJ',
   'bodyNeck','bodyTorso','bodyArm','bodyThigh','bodyShin','forms','tfOn','tfPre','tfEdit','tfHold','tfSel']);
@@ -3089,12 +3095,15 @@ function tfRun(o,{say,raw}={}){
   setTimeout(()=>{ tfGlow(false); },2300);
   setTimeout(()=>{ tfBusy=false; renderPanel(); },2500);
 }
-function tfTransform(){
-  const F=tfForms(), i=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
+// tap any form at any time: from her own clothes, or straight from one form into another (the clothes she
+// wore before the first transformation are kept until she changes back)
+function tfTransform(i){
+  const F=tfForms(); i=Math.min(F.length-1,Math.max(0,+i||0));
   if(tfBusy || S.tfEdit!=null) return;
-  if(S.tfOn!=null){ toast('แปลงร่างอยู่แล้ว'); return; }
-  if(tfLvNow()!==0){ toast('ต้องใจเย็นสนิท (ความเขิน 0) ถึงจะแปลงร่างได้'); return; }
-  S.tfPre=outfitOf(S); const pre=S.tfPre;
+  if(S.tfOn===i){ toast('อยู่ใน'+F[i].name+'แล้ว'); return; }
+  if(tfLvNow()>=10){ toast('เขินเกินไป แปลงร่างไม่ไหวแล้ว'); return; }
+  if(S.tfOn==null) S.tfPre=outfitOf(S);
+  const pre=S.tfPre; S.tfSel=i;
   tfRun(F[i].o,{say:'แปลงร่าง!!'});
   setTimeout(()=>{ S.tfOn=i; S.tfPre=pre; persist(); renderPanel(); },1300);
 }
@@ -3104,8 +3113,8 @@ function tfRevert(forced){
   tfRun(pre,forced?{say:'ม...ไม่... ม-ไม่น้... ไม่น้าาาา!!',raw:true}:{});
   setTimeout(()=>{ S.tfOn=null; S.tfPre=null; persist(); renderPanel(); },1300);
 }
-// too shy for the form to hold
-setInterval(()=>{ if(S.tfOn!=null && !tfBusy && S.tfEdit==null && tfLvNow()>8) tfRevert(true); },250);
+// too shy for the form to hold: it gives way when shyness reaches 10
+setInterval(()=>{ if(S.tfOn!=null && !tfBusy && S.tfEdit==null && tfLvNow()>=10) tfRevert(true); },250);
 function tfEditStart(i){
   if(tfBusy || S.tfOn!=null) { toast('คืนร่างก่อนถึงจะแต่งชุดแปลงร่างได้'); return; }
   const F=tfForms(); S.tfHold=outfitOf(S); S.tfEdit=i; applyOutfit(F[i].o); update();
@@ -3117,29 +3126,42 @@ function tfEditDone(){
 }
 document.addEventListener('change',ev=>{ const r=ev.target.closest('[data-tfemoin]'); if(!r) return;
   const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0)); F[sel].emo=[...r.value.trim()].slice(0,4).join(''); persist(); renderPanel(); });
+// two separate tabs: transforming (play) and setting up the forms (edit)
+let tfTab='play';
+const tfEsc=v=>String(v).replace(/[&"<>]/g,c=>({'&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]));
 function tfControls(){
   const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
-  let h=`<div class="tfbox"><div class="sec-title">✨ แปลงร่าง</div>`;
+  if(S.tfEdit!=null) tfTab='edit';
+  let h=`<div class="tfbox"><div class="tftabs"><button class="${tfTab==='play'?'on':''}" data-tftab="play">✨ แปลงร่าง</button><button class="${tfTab==='edit'?'on':''}" data-tftab="edit">✏️ แก้ไขชุดแปลงร่าง</button></div>`;
+  if(tfTab==='play'){
+    h+=`<div class="mini-label">${S.tfOn==null?'แตะร่างเพื่อแปลงร่าง':'แตะร่างอื่นเพื่อสลับร่างได้เลย'}</div>`;
+    h+=`<div class="tfrow">${F.map((f,i)=>`<button class="tfform ${S.tfOn===i?'on':''}" data-tfgo="${i}"${tfBusy?' disabled':''}>${S.tfOn===i?'✨ ':''}${tfEsc(f.name)}${f.emo?' '+tfEsc(f.emo):''}</button>`).join('')}</div>`;
+    if(S.tfOn!=null) h+=`<div class="tfrow"><button class="btn" data-tf="back"${tfBusy?' disabled':''}>↩ คืนร่าง</button></div>`;
+    h+=`<small style="color:var(--muted)">แปลงร่างได้ทุกระดับความเขิน · ถ้าเขินจนถึงระดับ 10 ชุดแปลงร่างจะทนไม่ไหวและคืนร่างเอง</small></div>`;
+    return h;
+  }
   if(S.tfEdit!=null){
-    h+=`<div class="banner">✏️ กำลังแต่งชุดของ ${F[S.tfEdit]?.name||''} · แต่งต่อด้านล่างได้เลย <button class="btn small primary" data-tf="done">💾 บันทึกร่าง</button> <button class="btn small" data-tf="cancel">ยกเลิก</button></div>`;
+    h+=`<div class="banner">✏️ กำลังแต่งชุดของ ${tfEsc(F[S.tfEdit]?.name||'')} · แต่งต่อด้านล่างได้เลย <button class="btn small primary" data-tf="done">💾 บันทึกร่าง</button> <button class="btn small" data-tf="cancel">ยกเลิก</button></div>`;
     // start from a saved look, then keep editing freely
     if(looks.length) h+=`<div class="mini-label">เริ่มจากลุคที่เก็บไว้ (แตะแล้วแก้ต่อได้)</div><div class="looks tfpick">${looks.map((l,i)=>`<button class="look" data-tfpick="${i}" title="ใช้ลุคนี้แล้วแก้ต่อ">${render(l)}</button>`).join('')}</div>`;
     return h+`</div>`;
-    return h;
   }
-  h+=`<div class="tfrow">${F.map((f,i)=>`<button class="pat ${i===sel?'on':''}" data-tfsel="${i}">${S.tfOn===i?'✨ ':''}${f.name}</button>`).join('')}<button class="pat" data-tf="add">+ เพิ่มร่าง</button></div>`;
+  h+=`<div class="mini-label">เลือกร่างที่จะแก้ไข</div><div class="tfrow">${F.map((f,i)=>`<button class="pat ${i===sel?'on':''}" data-tfsel="${i}">${tfEsc(f.name)}</button>`).join('')}<button class="pat" data-tf="add">+ เพิ่มร่าง</button></div>`;
   h+=`<div class="tfrow">`+(S.tfOn==null
-      ? `<button class="btn tf" data-tf="go"${tfBusy?' disabled':''}>✨ แปลงร่าง</button>`
-      : `<button class="btn" data-tf="back"${tfBusy?' disabled':''}>↩ คืนร่าง</button>`)
-    +`<button class="btn small" data-tf="edit">✏️ แต่งชุด${F[sel].name}</button>${F.length>1?`<button class="btn small" data-tf="del">ลบร่างนี้</button>`:''}</div>`;
+      ? `<button class="btn small primary" data-tf="edit">✏️ แต่งชุด${tfEsc(F[sel].name)}</button>`
+      : `<span class="hint" style="margin:0">คืนร่างก่อนถึงจะแต่งชุดได้</span>`)
+    +`${F.length>1&&S.tfOn==null?`<button class="btn small" data-tf="del">ลบร่างนี้</button>`:''}</div>`;
   // the emoji that floats up when you tap her while she is in this form
   const emo=F[sel].emo||'';
-  h+=`<div class="tfrow"><span class="mini-label" style="margin:0">อิโมจิลอยของ${F[sel].name}</span>${TF_EMOJI.map(e=>`<button class="pat ${e===emo?'on':''}" data-tfemo="${e}" aria-label="${e||'หัวใจ (ค่าเริ่มต้น)'}">${e||'❤ เดิม'}</button>`).join('')}`
-    +`<input class="numbox" style="width:58px!important" maxlength="8" placeholder="อื่นๆ" value="${(TF_EMOJI.includes(emo)?'':emo).replace(/[&"<>]/g,c=>({'&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]))}" data-tfemoin="1" aria-label="พิมพ์อิโมจิเอง"></div>`;
-  h+=`<small style="color:var(--muted)">แปลงร่างได้ตอนความเขิน 0 เท่านั้น · ถ้าเขินเกินระดับ 8 ชุดแปลงร่างจะทนไม่ไหวและคืนร่างเอง</small></div>`;
-  return h;
+  h+=`<div class="tfrow"><span class="mini-label" style="margin:0">อิโมจิลอยของ${tfEsc(F[sel].name)}</span>${TF_EMOJI.map(e=>`<button class="pat ${e===emo?'on':''}" data-tfemo="${e}" aria-label="${e||'หัวใจ (ค่าเริ่มต้น)'}">${e||'❤ เดิม'}</button>`).join('')}`
+    +`<input class="numbox" style="width:58px!important" maxlength="8" placeholder="อื่นๆ" value="${tfEsc(TF_EMOJI.includes(emo)?'':emo)}" data-tfemoin="1" aria-label="พิมพ์อิโมจิเอง"></div>`;
+  return h+`</div>`;
 }
 document.addEventListener('click',ev=>{
+  const tb=ev.target.closest('[data-tftab]');
+  if(tb){ if(S.tfEdit!=null){ toast('กด 💾 บันทึกร่าง หรือ ยกเลิก ก่อนนะ'); return; } tfTab=tb.dataset.tftab; renderPanel(); return; }
+  const go=ev.target.closest('[data-tfgo]');
+  if(go){ tfTransform(+go.dataset.tfgo); return; }
   const em=ev.target.closest('[data-tfemo]');
   if(em){ const F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0)); F[sel].emo=em.dataset.tfemo; persist(); renderPanel(); return; }
   const pk=ev.target.closest('[data-tfpick]');
@@ -3148,7 +3170,6 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-tf],[data-tfsel]'); if(!b) return;
   if(b.dataset.tfsel!=null){ S.tfSel=+b.dataset.tfsel; persist(); renderPanel(); return; }
   const a=b.dataset.tf, F=tfForms(), sel=Math.min(F.length-1,Math.max(0,+S.tfSel||0));
-  if(a==='go') tfTransform();
   if(a==='back') tfRevert(false);
   if(a==='edit') tfEditStart(sel);
   if(a==='done') tfEditDone();
