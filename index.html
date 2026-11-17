@@ -2481,13 +2481,14 @@ document.addEventListener('input',ev=>{ const r=ev.target.closest('[data-hcm]');
 const SLEEVE_FULL_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 Q106.4 224.6 116.4 228.4 L128 243.8 L136.4 233.6 L120.2 214.8 L127.6 184 L127.8 160.6 Q127.4 156 124 155.4 Z';
 const SLEEVE_UP_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 L113.6 215.6 L120.2 214.8 L127.6 184 L127.8 160.6 Q127.4 156 124 155.4 Z';
 const SLEEVE_EDGE_L='M124 155.4 Q116.6 157.8 115.2 166 L105.2 212.4 M120.2 214.8 L127.6 184';
-// the jackets' neckline comes right up against the side of the neck so the top under it is covered there
-const CARDI_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q132 263.2 150 263.6 L150 202 Q143.8 175 142.4 146.6 Z';
-const CARDI_OPEN_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q127.6 262.8 140.6 263.2 Q141 200 142.4 146.6 Z';
-const BLAZER_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.4 272.4 L150 226 L142.6 150.2 Z';
-const BLAZER_OPEN_L='M142.4 146.6 Q136.6 153.6 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.2 272.4 L142.6 226 L142.6 150.2 Z';
-const LAPEL_L='M142.4 146.6 Q137.2 154 133.4 168.4 L136.6 169.8 L135 174.2 Q141.8 199 149.6 224.6 L142.6 150.2 Z';
-const LAPEL_OPEN_L='M142.4 146.6 Q137.2 154 133.4 168.4 L136.6 169.8 L135 174.2 Q138.6 200 142.6 226 L142.6 150.2 Z';
+// jackets sit on top of everything: their shoulders run a little above the top's, and the neckline opens wider
+// than the neck (the top shows inside it, as with a real jacket) instead of hugging the neck
+const CARDI_L='M139.6 148.4 Q134.4 152.4 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q132 263.2 150 263.6 L150 202 Q142.6 175 139.6 148.4 Z';
+const CARDI_OPEN_L='M139.6 148.4 Q134.4 152.4 127.6 155.2 L127.8 184 Q125.6 222 113.4 259.4 Q127.6 262.8 140.6 263.2 Q140.2 200 139.6 148.4 Z';
+const BLAZER_L='M139.6 148.4 Q134.4 152.4 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.4 272.4 L150 226 L141.2 151.2 Z';
+const BLAZER_OPEN_L='M139.6 148.4 Q134.4 152.4 127.6 155.2 L127.8 184 Q128 200 128.8 216 C128.6 236 113.2 244 112.6 268 Q126 273.6 141.2 272.4 L142.6 226 L141.2 151.2 Z';
+const LAPEL_L='M139.6 148.4 Q135.4 154.2 133.4 168.4 L136.6 169.8 L135 174.2 Q141.8 199 149.6 224.6 L141.2 151.2 Z';
+const LAPEL_OPEN_L='M139.6 148.4 Q135.4 154.2 133.4 168.4 L136.6 169.8 L135 174.2 Q138.6 200 142.6 226 L141.2 151.2 Z';
 const SLEEVE_PUFF_FULL_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 Q103.2 227 115.4 231 L127.6 247 L137.8 235 L121.8 215.4 L127.2 184 L127.6 160.4 Q127 155.2 122.6 154.4 Z';
 const SLEEVE_PUFF_UP_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 L112.6 216.6 L121.8 215.4 L127.2 184 L127.6 160.4 Q127 155.2 122.6 154.4 Z';
 const SLEEVE_PUFF_EDGE_L='M122.6 154.4 Q113.4 156.8 111.8 166 L101.8 212.6 M121.8 215.4 L127.2 184';
@@ -2555,8 +2556,8 @@ function drawOuterFront(){
     const L=S.cardiOpen?CARDI_OPEN_L:CARDI_L;
     body+=both(L,`fill="${c}" stroke="${e}" stroke-width="1.1" stroke-linejoin="round"`);
     // ribbed front band, hem band and knit texture
-    body+= S.cardiOpen ? both('M142.4 146.6 Q141 200 140.6 263.2',`stroke="${d}" stroke-width="2.6" fill="none"`)
-                       : both('M142.4 146.6 Q143.8 175 150 202 L150 263.6',`stroke="${d}" stroke-width="2.6" fill="none"`);
+    body+= S.cardiOpen ? both('M139.6 148.4 Q140.2 200 140.6 263.2',`stroke="${d}" stroke-width="2.6" fill="none"`)
+                       : both('M139.6 148.4 Q142.6 175 150 202 L150 263.6',`stroke="${d}" stroke-width="2.6" fill="none"`);
     body+= both(S.cardiOpen?'M114 256.6 Q127.6 260 140.4 260.4':'M114 256.6 Q132 260.4 150 260.8',`stroke="${d}" stroke-width="1" fill="none" stroke-dasharray="1 1.4"`);
     body+= both('M130.4 196 Q129 228 120 252 M135 200 Q134.4 230 130 256',`stroke="${d}" stroke-width=".7" fill="none" opacity=".55"`);
     if(!S.cardiOpen) body+=[212,226,240,254].map(y=>`<circle cx="150" cy="${y}" r="1.4" fill="${shade(c,-.3)}"/>`).join('');
